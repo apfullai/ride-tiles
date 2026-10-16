@@ -1,6 +1,11 @@
 name: Refresh coverage and gradually add US cities
 on:
-  # Scheduling remains paused until migration and consumer cutover are verified.
+  schedule:
+    - cron: '23 2 * * 1'
+    - cron: '23 2 * * 0,2-6'
+    - cron: '23 18 * * *'
+    # One-time 2026 acquisition window is also enforced before metadata reads.
+    - cron: '23 10 17-19 10 *'
   workflow_dispatch:
     inputs:
       seed_migration:
@@ -107,6 +112,7 @@ jobs:
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
           ALLOW_NEW: ${{ needs.budget.outputs.allow_new }}
+          ACQUISITION_ONLY: ${{ github.event_name == 'schedule' && github.event.schedule == '23 10 17-19 10 *' }}
           START_REGION: ${{ needs.budget.outputs.start_region }}
         run: |
           if [ "${{ needs.budget.outputs.seed }}" = true ]; then
@@ -116,6 +122,7 @@ jobs:
           args=(--continue-only)
           if [ "$ALLOW_NEW" = true ]; then args=(--allow-new); fi
           if [ -n "$START_REGION" ]; then args+=(--start-region "$START_REGION"); fi
+          if [ "$ACQUISITION_ONLY" = true ]; then args+=(--acquisition-only); fi
           timeout --signal=TERM --kill-after=10s 540s python publishing/resumable_rollout.py "${args[@]}"
       - name: Check active artifact storage before upload
         id: storage

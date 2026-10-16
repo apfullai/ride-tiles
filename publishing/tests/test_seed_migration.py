@@ -61,5 +61,5 @@ class OriginTests(unittest.TestCase):
         wf=(root/'.github/workflows/rollout.yml').read_text()
         self.assertIn('OLD_BASE if os.environ',wf)
         self.assertIn('seed_migration.py',wf)
-        self.assertNotIn('  schedule:',wf)
+        self.assertIn('seed_migration:',wf)
 if __name__=='__main__':unittest.main()

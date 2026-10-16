@@ -86,6 +86,20 @@ class ResumableRolloutTests(unittest.TestCase):
             execute=kwargs.pop('execute',self.execute),inspector=self.inspector,
             verifier=kwargs.pop('verifier',self.verifier),fingerprinter=kwargs.pop('fingerprinter',lambda root:CODE),**kwargs)
 
+    def test_temporary_acquisition_checks_restored_checkpoint_not_advisory(self):
+        from continuation_gate import ACQUISITION_GENERATION
+        now=dt.datetime(2026,10,18,tzinfo=dt.timezone.utc)
+        checkpoint={'generationId':ACQUISITION_GENERATION,
+            'config':{**config('chicagoland'),'sourceStates':['a','b','c','d']},
+            'sourcePlan':{'sourceDate':'2026-10-13','expiresAt':'2026-10-20T00:00:00+00:00'},
+            'progress':{'completedStates':['a']},'nextStage':{'kind':'index'}}
+        for actual in (None,checkpoint,{**checkpoint,'generationId':'other','nextStage':{'kind':'source'}}):
+            with patch.object(r,'load_checkpoint',return_value=actual), patch.object(r,'current_code_fingerprint') as fingerprint:
+                result=self.advance(now=now,acquisition_only=True,
+                    verifier=lambda *a,**k:self.fail('temporary stale stage must not verify/advance'))
+                self.assertFalse(result['changed']);self.assertEqual(self.calls,[])
+                fingerprint.assert_not_called()
+
     def test_each_stage_preserves_live_manifest_until_complete_promotion(self):
         initial=(self.site/'manifest.json').read_bytes()
         prior=r.inventory(self.site/'regions')

@@ -16,4 +16,31 @@ class GateTests(unittest.TestCase):
   for event,schedule,region in [('pull_request','', ''),('schedule','bad',''),('push','','$(oops)')]:
    with self.assertRaises(ValueError):c.choose_mode(event,schedule,region)
   with self.assertRaises(ValueError):c.ready({'active':'yes'},False,NOW)
+ def test_extra_slots_never_select_new_city(self):
+  for slot in (c.EVENING,c.ACQUISITION):self.assertEqual(c.choose_mode('schedule',slot),(False,''))
+ def test_temporary_slot_requires_exact_unfinished_generation(self):
+  import copy
+  now=dt.datetime(2026,10,18,10,23,tzinfo=dt.timezone.utc)
+  status={'active':True,'needsAttention':False,'retryAfter':None,
+   'generationId':c.ACQUISITION_GENERATION,'stage':'source','sourceDate':'2026-10-13',
+   'sourceAcquisitionExpiresAt':'2026-10-20T00:00:00+00:00',
+   'completedCounts':{'sources':1,'sourceTotal':4}}
+  self.assertTrue(c.acquisition_ready(status,now)[0])
+  for key,value in [('active',False),('generationId','other'),('stage','index'),
+                    ('sourceDate','2026-10-14'),('needsAttention',True),
+                    ('sourceAcquisitionExpiresAt','2026-10-21T00:00:00+00:00'),
+                    ('completedCounts',{'sources':4,'sourceTotal':4}),
+                    ('completedCounts',{'sources':True,'sourceTotal':4})]:
+   changed=copy.deepcopy(status);changed[key]=value
+   with self.subTest(key=key,value=value):self.assertFalse(c.acquisition_ready(changed,now)[0])
+  for date in (c.ACQUISITION_START-dt.timedelta(seconds=1),c.ACQUISITION_END,now.replace(year=2027)):
+   self.assertFalse(c.acquisition_ready(status,date)[0])
+ def test_temporary_later_year_skips_even_metadata_fetch(self):
+  import os,io
+  from unittest.mock import patch
+  class Later(dt.datetime):
+   @classmethod
+   def now(cls,tz=None):return cls(2027,10,18,10,23,tzinfo=dt.timezone.utc)
+  with patch.dict(os.environ,{'GITHUB_EVENT_NAME':'schedule','EVENT_SCHEDULE':c.ACQUISITION},clear=True), patch.object(c.dt,'datetime',Later), patch.object(c,'fetch_status') as fetch, patch('sys.stdout',new_callable=io.StringIO) as out:
+   c.main();fetch.assert_not_called();self.assertIn('temporary acquisition window closed',out.getvalue())
 if __name__=='__main__':unittest.main()

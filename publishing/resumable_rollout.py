@@ -279,7 +279,7 @@ def blocked_publication(site, error, now, deadline, verifier, monotonic):
     return {'changed':True, 'siteBytes':report['siteBytes'], **status}
 
 
-def advance(site, configs, *, allow_new=False, start_region=None, now=None, deadline=None,
+def advance(site, configs, *, allow_new=False, start_region=None, acquisition_only=False, now=None, deadline=None,
             execute=subprocess_stage, inspector=inspect_stage, verifier=verify_code,
             fingerprinter=current_code_fingerprint, monotonic=time.monotonic):
     now = now or dt.datetime.now(dt.timezone.utc)
@@ -290,7 +290,14 @@ def advance(site, configs, *, allow_new=False, start_region=None, now=None, dead
     try:
         checkpoint = load_checkpoint(site, configs, inspector=inspector)
     except Exception as error:
+        if acquisition_only:
+            return {'changed':False,'reason':'Temporary acquisition checkpoint unavailable'}
         return blocked_publication(site, error, now, deadline, verifier, monotonic)
+    if acquisition_only:
+        from continuation_gate import acquisition_ready
+        eligible, reason = acquisition_ready(status_for(checkpoint, now), now)
+        if allow_new or start_region or not eligible:
+            return {'changed':False,'reason':'Temporary acquisition restriction: '+reason}
     if checkpoint and checkpoint.get('sourcePlan'):
         old = next((item for item in manifest['regions'] if item['id'] == checkpoint['config']['id']), None)
         timestamp = checkpoint['sourcePlan'].get('osmReplicationTimestamp')
@@ -472,6 +479,7 @@ def main():
     mode.add_argument('--allow-new', action='store_true')
     mode.add_argument('--continue-only', action='store_true')
     p.add_argument('--start-region')
+    p.add_argument('--acquisition-only', action='store_true')
     p.add_argument('--report', default='rollout-report.json')
     a = p.parse_args()
     signal.signal(signal.SIGTERM, interrupt_rollout)
@@ -487,7 +495,7 @@ def main():
     if not storage['allowed']:
         report = {'changed': False, 'reason': 'Baseline artifact storage cannot safely admit another checkpoint', 'storage': storage}
     else:
-        report = advance(site, configs, allow_new=a.allow_new, start_region=a.start_region, deadline=deadline)
+        report = advance(site, configs, allow_new=a.allow_new, start_region=a.start_region, acquisition_only=a.acquisition_only, deadline=deadline)
     if report['changed']:
         assert_publication_unchanged(restored['publicationRevision'])
     report['restoredPublicationRevision'] = restored['publicationRevision']
