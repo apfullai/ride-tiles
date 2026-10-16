@@ -1,0 +1,51 @@
+rank,census_area,population_july_1_2025,region_id
+1,"New York city, New York",8584629,nyc-pilot
+2,"Los Angeles city, California",3869089,los-angeles-center
+3,"Chicago city, Illinois",2731585,chicagoland
+4,"Houston city, Texas",2397315,houston-center
+5,"Phoenix city, Arizona",1665481,phoenix-center
+6,"Philadelphia city, Pennsylvania",1574281,philadelphia-center
+7,"San Antonio city, Texas",1548422,san-antonio-center
+8,"San Diego city, California",1406106,san-diego-center
+9,"Dallas city, Texas",1329491,dallas-center
+10,"Fort Worth city, Texas",1028117,fort-worth-center
+11,"Jacksonville city, Florida",1017689,jacksonville-center
+12,"Austin city, Texas",1002632,austin-center
+13,"San Jose city, California",989814,san-jose-center
+14,"Charlotte city, North Carolina",964784,charlotte-center
+15,"Columbus city, Ohio",938396,columbus-center
+16,"Indianapolis city (balance), Indiana",901116,indianapolis-center
+17,"San Francisco city, California",826079,san-francisco-center
+18,"Seattle city, Washington",784777,seattle-center
+19,"Denver city, Colorado",740613,denver-center
+20,"Nashville-Davidson metropolitan government (balance), Tennessee",721074,nashville-center
+21,"Oklahoma City city, Oklahoma",719849,oklahoma-city-center
+22,"Washington city, District of Columbia",693645,washington-center
+23,"El Paso city, Texas",683012,el-paso-center
+24,"Las Vegas city, Nevada",679817,las-vegas-center
+25,"Boston city, Massachusetts",672973,boston-center
+26,"Detroit city, Michigan",649095,detroit-center
+27,"Louisville/Jefferson County metro government (balance), Kentucky",641962,louisville-center
+28,"Portland city, Oregon",635109,portland-center
+29,"Memphis city, Tennessee",609647,memphis-center
+30,"Baltimore city, Maryland",569997,baltimore-center
+31,"Milwaukee city, Wisconsin",562407,milwaukee-center
+32,"Albuquerque city, New Mexico",556588,albuquerque-center
+33,"Fresno city, California",555549,fresno-center
+34,"Tucson city, Arizona",548371,tucson-center
+35,"Sacramento city, California",536449,sacramento-center
+36,"Atlanta city, Georgia",529110,atlanta-center
+37,"Kansas City city, Missouri",521220,kansas-city-center
+38,"Mesa city, Arizona",513656,mesa-center
+39,"Raleigh city, North Carolina",506306,raleigh-center
+40,"Colorado Springs city, Colorado",494743,colorado-springs-center
+41,"Miami city, Florida",489812,miami-center
+42,"Omaha city, Nebraska",488797,omaha-center
+43,"Virginia Beach city, Virginia",453737,virginia-beach-center
+44,"Long Beach city, California",450469,long-beach-center
+45,"Oakland city, California",440838,oakland-center
+46,"Minneapolis city, Minnesota",430324,minneapolis-center
+47,"Bakersfield city, California",422165,bakersfield-center
+48,"Tulsa city, Oklahoma",416209,tulsa-center
+49,"Tampa city, Florida",413554,tampa-center
+50,"Aurora city, Colorado",410053,aurora-center

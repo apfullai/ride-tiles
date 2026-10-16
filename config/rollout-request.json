@@ -1,0 +1,6 @@
+{
+  "requestId": "migration-source-preparation-2026-10-15",
+  "startRegion": "",
+  "seedMigration": false,
+  "purpose": "Prepare verified source only; explicit seed request follows budget admission"
+}

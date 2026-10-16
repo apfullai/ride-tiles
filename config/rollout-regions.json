@@ -1,0 +1,767 @@
+[
+  {
+    "id": "nyc-pilot",
+    "name": "New York City pilot",
+    "bounds": [
+      -74.05,
+      40.65,
+      -73.85,
+      40.9
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "new-york",
+      "new-jersey"
+    ]
+  },
+  {
+    "id": "chicagoland",
+    "name": "Chicagoland",
+    "bounds": [
+      -89,
+      41.05,
+      -86.65,
+      43.25
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "illinois",
+      "wisconsin",
+      "indiana",
+      "michigan"
+    ]
+  },
+  {
+    "id": "los-angeles-center",
+    "name": "Los Angeles city-center pilot",
+    "bounds": [
+      -118.4,
+      33.95,
+      -118.1,
+      34.2
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "houston-center",
+    "name": "Houston city-center pilot",
+    "bounds": [
+      -95.55,
+      29.6,
+      -95.2,
+      29.9
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "texas"
+    ]
+  },
+  {
+    "id": "phoenix-center",
+    "name": "Phoenix city-center pilot",
+    "bounds": [
+      -112.23,
+      33.3,
+      -111.93,
+      33.6
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "arizona"
+    ]
+  },
+  {
+    "id": "philadelphia-center",
+    "name": "Philadelphia city-center pilot",
+    "bounds": [
+      -75.3,
+      39.85,
+      -75.05,
+      40.1
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "pennsylvania",
+      "new-jersey"
+    ]
+  },
+  {
+    "id": "san-antonio-center",
+    "name": "San Antonio city-center pilot",
+    "bounds": [
+      -98.65,
+      29.28,
+      -98.35,
+      29.58
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "texas"
+    ]
+  },
+  {
+    "id": "san-diego-center",
+    "name": "San Diego city-center pilot",
+    "bounds": [
+      -117.25,
+      32.65,
+      -117.0,
+      32.9
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "dallas-center",
+    "name": "Dallas city-center pilot",
+    "bounds": [
+      -96.95,
+      32.65,
+      -96.65,
+      32.95
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "texas"
+    ]
+  },
+  {
+    "id": "fort-worth-center",
+    "name": "Fort Worth city-center pilot",
+    "bounds": [
+      -97.48,
+      32.6,
+      -97.18,
+      32.9
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "texas"
+    ]
+  },
+  {
+    "id": "jacksonville-center",
+    "name": "Jacksonville city-center pilot",
+    "bounds": [
+      -81.8,
+      30.18,
+      -81.5,
+      30.48
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "florida"
+    ]
+  },
+  {
+    "id": "austin-center",
+    "name": "Austin city-center pilot",
+    "bounds": [
+      -97.9,
+      30.12,
+      -97.6,
+      30.42
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "texas"
+    ]
+  },
+  {
+    "id": "san-jose-center",
+    "name": "San Jose city-center pilot",
+    "bounds": [
+      -122.05,
+      37.2,
+      -121.75,
+      37.45
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "charlotte-center",
+    "name": "Charlotte city-center pilot",
+    "bounds": [
+      -80.98,
+      35.08,
+      -80.68,
+      35.38
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "north-carolina",
+      "south-carolina"
+    ]
+  },
+  {
+    "id": "columbus-center",
+    "name": "Columbus city-center pilot",
+    "bounds": [
+      -83.15,
+      39.82,
+      -82.85,
+      40.12
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "ohio"
+    ]
+  },
+  {
+    "id": "indianapolis-center",
+    "name": "Indianapolis city-center pilot",
+    "bounds": [
+      -86.31,
+      39.62,
+      -86.01,
+      39.92
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "indiana"
+    ]
+  },
+  {
+    "id": "san-francisco-center",
+    "name": "San Francisco city-center pilot",
+    "bounds": [
+      -122.53,
+      37.68,
+      -122.32,
+      37.85
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "seattle-center",
+    "name": "Seattle city-center pilot",
+    "bounds": [
+      -122.43,
+      47.48,
+      -122.22,
+      47.76
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "washington"
+    ]
+  },
+  {
+    "id": "denver-center",
+    "name": "Denver city-center pilot",
+    "bounds": [
+      -105.14,
+      39.59,
+      -104.84,
+      39.89
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "colorado"
+    ]
+  },
+  {
+    "id": "nashville-center",
+    "name": "Nashville city-center pilot",
+    "bounds": [
+      -86.93,
+      36.01,
+      -86.63,
+      36.31
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "tennessee"
+    ]
+  },
+  {
+    "id": "oklahoma-city-center",
+    "name": "Oklahoma City city-center pilot",
+    "bounds": [
+      -97.67,
+      35.32,
+      -97.37,
+      35.62
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "oklahoma"
+    ]
+  },
+  {
+    "id": "washington-center",
+    "name": "Washington DC city-center pilot",
+    "bounds": [
+      -77.15,
+      38.75,
+      -76.85,
+      39.05
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "district-of-columbia",
+      "maryland",
+      "virginia"
+    ]
+  },
+  {
+    "id": "el-paso-center",
+    "name": "El Paso US city-center pilot",
+    "bounds": [
+      -106.55,
+      31.7,
+      -106.3,
+      31.95
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "texas",
+      "new-mexico"
+    ]
+  },
+  {
+    "id": "las-vegas-center",
+    "name": "Las Vegas city-center pilot",
+    "bounds": [
+      -115.29,
+      36.02,
+      -114.99,
+      36.32
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "nevada"
+    ]
+  },
+  {
+    "id": "boston-center",
+    "name": "Boston city-center pilot",
+    "bounds": [
+      -71.18,
+      42.24,
+      -70.94,
+      42.46
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "massachusetts"
+    ]
+  },
+  {
+    "id": "detroit-center",
+    "name": "Detroit US city-center pilot",
+    "bounds": [
+      -83.2,
+      42.23,
+      -82.9,
+      42.49
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "michigan"
+    ]
+  },
+  {
+    "id": "louisville-center",
+    "name": "Louisville city-center pilot",
+    "bounds": [
+      -85.91,
+      38.1,
+      -85.61,
+      38.4
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "kentucky",
+      "indiana"
+    ]
+  },
+  {
+    "id": "portland-center",
+    "name": "Portland city-center pilot",
+    "bounds": [
+      -122.82,
+      45.37,
+      -122.52,
+      45.67
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "oregon",
+      "washington"
+    ]
+  },
+  {
+    "id": "memphis-center",
+    "name": "Memphis city-center pilot",
+    "bounds": [
+      -90.2,
+      35.0,
+      -89.9,
+      35.3
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "tennessee",
+      "arkansas",
+      "mississippi"
+    ]
+  },
+  {
+    "id": "baltimore-center",
+    "name": "Baltimore city-center pilot",
+    "bounds": [
+      -76.76,
+      39.14,
+      -76.46,
+      39.44
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "maryland"
+    ]
+  },
+  {
+    "id": "milwaukee-center",
+    "name": "Milwaukee city-center pilot",
+    "bounds": [
+      -88.03,
+      42.9,
+      -87.78,
+      43.18
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "wisconsin"
+    ]
+  },
+  {
+    "id": "albuquerque-center",
+    "name": "Albuquerque city-center pilot",
+    "bounds": [
+      -106.8,
+      34.94,
+      -106.5,
+      35.24
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "new-mexico"
+    ]
+  },
+  {
+    "id": "fresno-center",
+    "name": "Fresno city-center pilot",
+    "bounds": [
+      -119.94,
+      36.59,
+      -119.64,
+      36.89
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "tucson-center",
+    "name": "Tucson city-center pilot",
+    "bounds": [
+      -111.12,
+      32.07,
+      -110.82,
+      32.37
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "arizona"
+    ]
+  },
+  {
+    "id": "sacramento-center",
+    "name": "Sacramento city-center pilot",
+    "bounds": [
+      -121.64,
+      38.43,
+      -121.34,
+      38.73
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "atlanta-center",
+    "name": "Atlanta city-center pilot",
+    "bounds": [
+      -84.54,
+      33.6,
+      -84.24,
+      33.9
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "georgia"
+    ]
+  },
+  {
+    "id": "kansas-city-center",
+    "name": "Kansas City city-center pilot",
+    "bounds": [
+      -94.73,
+      38.95,
+      -94.43,
+      39.25
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "missouri",
+      "kansas"
+    ]
+  },
+  {
+    "id": "mesa-center",
+    "name": "Mesa city-center pilot",
+    "bounds": [
+      -111.98,
+      33.27,
+      -111.68,
+      33.57
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "arizona"
+    ]
+  },
+  {
+    "id": "raleigh-center",
+    "name": "Raleigh city-center pilot",
+    "bounds": [
+      -78.79,
+      35.63,
+      -78.49,
+      35.93
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "north-carolina"
+    ]
+  },
+  {
+    "id": "colorado-springs-center",
+    "name": "Colorado Springs city-center pilot",
+    "bounds": [
+      -104.97,
+      38.68,
+      -104.67,
+      38.98
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "colorado"
+    ]
+  },
+  {
+    "id": "miami-center",
+    "name": "Miami city-center pilot",
+    "bounds": [
+      -80.35,
+      25.62,
+      -80.1,
+      25.92
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "florida"
+    ]
+  },
+  {
+    "id": "omaha-center",
+    "name": "Omaha city-center pilot",
+    "bounds": [
+      -96.1,
+      41.11,
+      -95.8,
+      41.41
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "nebraska",
+      "iowa"
+    ]
+  },
+  {
+    "id": "virginia-beach-center",
+    "name": "Virginia Beach city-center pilot",
+    "bounds": [
+      -76.12,
+      36.7,
+      -75.92,
+      36.95
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "virginia"
+    ]
+  },
+  {
+    "id": "long-beach-center",
+    "name": "Long Beach city-center pilot",
+    "bounds": [
+      -118.33,
+      33.66,
+      -118.08,
+      33.91
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "oakland-center",
+    "name": "Oakland city-center pilot",
+    "bounds": [
+      -122.39,
+      37.68,
+      -122.14,
+      37.93
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "minneapolis-center",
+    "name": "Minneapolis city-center pilot",
+    "bounds": [
+      -93.42,
+      44.83,
+      -93.12,
+      45.13
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "minnesota"
+    ]
+  },
+  {
+    "id": "bakersfield-center",
+    "name": "Bakersfield city-center pilot",
+    "bounds": [
+      -119.17,
+      35.22,
+      -118.87,
+      35.52
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "california"
+    ]
+  },
+  {
+    "id": "tulsa-center",
+    "name": "Tulsa city-center pilot",
+    "bounds": [
+      -96.14,
+      36.0,
+      -95.84,
+      36.3
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "oklahoma"
+    ]
+  },
+  {
+    "id": "tampa-center",
+    "name": "Tampa city-center pilot",
+    "bounds": [
+      -82.61,
+      27.8,
+      -82.31,
+      28.1
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "florida"
+    ]
+  },
+  {
+    "id": "aurora-center",
+    "name": "Aurora city-center pilot",
+    "bounds": [
+      -104.95,
+      39.6,
+      -104.65,
+      39.9
+    ],
+    "minzoom": 8,
+    "maxzoom": 14,
+    "sourceStates": [
+      "colorado"
+    ]
+  }
+]

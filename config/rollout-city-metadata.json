@@ -1,0 +1,457 @@
+{
+  "schemaVersion": 1,
+  "preparedAt": "2026-10-14",
+  "ranking": {
+    "publisher": "U.S. Census Bureau",
+    "table": "SUB-IP-EST2025-ANNRNK",
+    "populationDate": "2025-07-01",
+    "releaseMonth": "2026-05",
+    "geography": "Top 50 entries in the official incorporated-place ranking, including listed balance areas; not metropolitan areas.",
+    "landingUrl": "https://www.census.gov/data/datasets/time-series/demo/popest/2020s-total-cities-and-towns.html",
+    "sourceUrl": "https://www2.census.gov/programs-surveys/popest/tables/2020-2025/cities/totals/SUB-IP-EST2025-ANNRNK.xlsx",
+    "sourceSha256": "c696964db3fcbc42db6fc5ef1285c76476fd84024964f5caab6d7f3ec7bf1b9a"
+  },
+  "queuePolicy": {
+    "existingFirst": [
+      "nyc-pilot",
+      "chicagoland"
+    ],
+    "expansion": "Remaining cities in ascending populationRank; budget or runtime eligibility may defer an entry.",
+    "firstNewCityCandidate": "los-angeles-center",
+    "buildAllAtOnce": false,
+    "sourceProvider": "Geofabrik",
+    "newProviderAllowed": false
+  },
+  "cities": [
+    {
+      "populationRank": 1,
+      "censusArea": "New York city, New York",
+      "population2025": 8584629,
+      "regionId": "nyc-pilot",
+      "coverage": "existing-bounded-nyc-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 2,
+      "censusArea": "Los Angeles city, California",
+      "population2025": 3869089,
+      "regionId": "los-angeles-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 3,
+      "censusArea": "Chicago city, Illinois",
+      "population2025": 2731585,
+      "regionId": "chicagoland",
+      "coverage": "existing-broad-chicagoland-window-with-expanded-refresh-sources",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 4,
+      "censusArea": "Houston city, Texas",
+      "population2025": 2397315,
+      "regionId": "houston-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 5,
+      "censusArea": "Phoenix city, Arizona",
+      "population2025": 1665481,
+      "regionId": "phoenix-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 6,
+      "censusArea": "Philadelphia city, Pennsylvania",
+      "population2025": 1574281,
+      "regionId": "philadelphia-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 7,
+      "censusArea": "San Antonio city, Texas",
+      "population2025": 1548422,
+      "regionId": "san-antonio-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 8,
+      "censusArea": "San Diego city, California",
+      "population2025": 1406106,
+      "regionId": "san-diego-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 9,
+      "censusArea": "Dallas city, Texas",
+      "population2025": 1329491,
+      "regionId": "dallas-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 10,
+      "censusArea": "Fort Worth city, Texas",
+      "population2025": 1028117,
+      "regionId": "fort-worth-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 11,
+      "censusArea": "Jacksonville city, Florida",
+      "population2025": 1017689,
+      "regionId": "jacksonville-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 12,
+      "censusArea": "Austin city, Texas",
+      "population2025": 1002632,
+      "regionId": "austin-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 13,
+      "censusArea": "San Jose city, California",
+      "population2025": 989814,
+      "regionId": "san-jose-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 14,
+      "censusArea": "Charlotte city, North Carolina",
+      "population2025": 964784,
+      "regionId": "charlotte-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 15,
+      "censusArea": "Columbus city, Ohio",
+      "population2025": 938396,
+      "regionId": "columbus-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 16,
+      "censusArea": "Indianapolis city (balance), Indiana",
+      "population2025": 901116,
+      "regionId": "indianapolis-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 17,
+      "censusArea": "San Francisco city, California",
+      "population2025": 826079,
+      "regionId": "san-francisco-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 18,
+      "censusArea": "Seattle city, Washington",
+      "population2025": 784777,
+      "regionId": "seattle-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 19,
+      "censusArea": "Denver city, Colorado",
+      "population2025": 740613,
+      "regionId": "denver-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 20,
+      "censusArea": "Nashville-Davidson metropolitan government (balance), Tennessee",
+      "population2025": 721074,
+      "regionId": "nashville-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 21,
+      "censusArea": "Oklahoma City city, Oklahoma",
+      "population2025": 719849,
+      "regionId": "oklahoma-city-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 22,
+      "censusArea": "Washington city, District of Columbia",
+      "population2025": 693645,
+      "regionId": "washington-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 23,
+      "censusArea": "El Paso city, Texas",
+      "population2025": 683012,
+      "regionId": "el-paso-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 24,
+      "censusArea": "Las Vegas city, Nevada",
+      "population2025": 679817,
+      "regionId": "las-vegas-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 25,
+      "censusArea": "Boston city, Massachusetts",
+      "population2025": 672973,
+      "regionId": "boston-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 26,
+      "censusArea": "Detroit city, Michigan",
+      "population2025": 649095,
+      "regionId": "detroit-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 27,
+      "censusArea": "Louisville/Jefferson County metro government (balance), Kentucky",
+      "population2025": 641962,
+      "regionId": "louisville-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 28,
+      "censusArea": "Portland city, Oregon",
+      "population2025": 635109,
+      "regionId": "portland-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 29,
+      "censusArea": "Memphis city, Tennessee",
+      "population2025": 609647,
+      "regionId": "memphis-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 30,
+      "censusArea": "Baltimore city, Maryland",
+      "population2025": 569997,
+      "regionId": "baltimore-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 31,
+      "censusArea": "Milwaukee city, Wisconsin",
+      "population2025": 562407,
+      "regionId": "milwaukee-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 32,
+      "censusArea": "Albuquerque city, New Mexico",
+      "population2025": 556588,
+      "regionId": "albuquerque-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 33,
+      "censusArea": "Fresno city, California",
+      "population2025": 555549,
+      "regionId": "fresno-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 34,
+      "censusArea": "Tucson city, Arizona",
+      "population2025": 548371,
+      "regionId": "tucson-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 35,
+      "censusArea": "Sacramento city, California",
+      "population2025": 536449,
+      "regionId": "sacramento-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 36,
+      "censusArea": "Atlanta city, Georgia",
+      "population2025": 529110,
+      "regionId": "atlanta-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 37,
+      "censusArea": "Kansas City city, Missouri",
+      "population2025": 521220,
+      "regionId": "kansas-city-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 38,
+      "censusArea": "Mesa city, Arizona",
+      "population2025": 513656,
+      "regionId": "mesa-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 39,
+      "censusArea": "Raleigh city, North Carolina",
+      "population2025": 506306,
+      "regionId": "raleigh-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 40,
+      "censusArea": "Colorado Springs city, Colorado",
+      "population2025": 494743,
+      "regionId": "colorado-springs-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 41,
+      "censusArea": "Miami city, Florida",
+      "population2025": 489812,
+      "regionId": "miami-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 42,
+      "censusArea": "Omaha city, Nebraska",
+      "population2025": 488797,
+      "regionId": "omaha-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 43,
+      "censusArea": "Virginia Beach city, Virginia",
+      "population2025": 453737,
+      "regionId": "virginia-beach-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 44,
+      "censusArea": "Long Beach city, California",
+      "population2025": 450469,
+      "regionId": "long-beach-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 45,
+      "censusArea": "Oakland city, California",
+      "population2025": 440838,
+      "regionId": "oakland-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 46,
+      "censusArea": "Minneapolis city, Minnesota",
+      "population2025": 430324,
+      "regionId": "minneapolis-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 47,
+      "censusArea": "Bakersfield city, California",
+      "population2025": 422165,
+      "regionId": "bakersfield-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 48,
+      "censusArea": "Tulsa city, Oklahoma",
+      "population2025": 416209,
+      "regionId": "tulsa-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 49,
+      "censusArea": "Tampa city, Florida",
+      "population2025": 413554,
+      "regionId": "tampa-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    },
+    {
+      "populationRank": 50,
+      "censusArea": "Aurora city, Colorado",
+      "population2025": 410053,
+      "regionId": "aurora-center",
+      "coverage": "planned-bounded-city-center-pilot",
+      "fullCityCoverageClaim": false
+    }
+  ],
+  "coverageRefreshChanges": {
+    "nyc-pilot": {
+      "unchangedBounds": true,
+      "previousSourceStates": [
+        "new-york"
+      ],
+      "nextSourceStates": [
+        "new-york",
+        "new-jersey"
+      ],
+      "effectiveAfter": "successful new GitHub publication"
+    },
+    "chicagoland": {
+      "unchangedBounds": true,
+      "previousSourceStates": [
+        "illinois",
+        "wisconsin",
+        "indiana"
+      ],
+      "nextSourceStates": [
+        "illinois",
+        "wisconsin",
+        "indiana",
+        "michigan"
+      ],
+      "sourceCountException": 4,
+      "effectiveAfter": "successful new GitHub publication",
+      "frozenCloudflareAndOldVersionsUnchanged": true
+    }
+  }
+}

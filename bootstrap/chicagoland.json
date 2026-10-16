@@ -1,0 +1,14 @@
+{
+  "archiveSha256": "d6178e76382e7abb7abea95e46703fc32677bcca0e89c75abc31979c0eabde14",
+  "upstreamArchiveSha256": "ab47f2550c48fd36e059940900a2863c7f64f9c5b4ebb60a6b03dcd20d644eb1",
+  "expectedContentVersion": "19785f3c1ca31233",
+  "expectedTileCount": 6782,
+  "bounds": [
+    -89,
+    41.05,
+    -86.65,
+    43.25
+  ],
+  "minzoom": 8,
+  "maxzoom": 14
+}

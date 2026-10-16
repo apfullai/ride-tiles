@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-14",
+  "results": [
+    {
+      "source": "california",
+      "url": "https://download.geofabrik.de/north-america/us/california-latest.osm.pbf",
+      "contentLength": "1332392446",
+      "lastModified": "Tue, 13 Oct 2026 22:54:53 GMT",
+      "status": 200
+    },
+    {
+      "source": "texas",
+      "url": "https://download.geofabrik.de/north-america/us/texas-latest.osm.pbf",
+      "contentLength": "724738425",
+      "lastModified": "Tue, 13 Oct 2026 22:53:00 GMT",
+      "status": 200
+    },
+    {
+      "source": "california/norcal",
+      "url": "https://download.geofabrik.de/north-america/us/california/norcal-latest.osm.pbf",
+      "contentLength": "653945373",
+      "lastModified": "Tue, 13 Oct 2026 22:55:53 GMT",
+      "status": 200
+    },
+    {
+      "source": "california/socal",
+      "url": "https://download.geofabrik.de/north-america/us/california/socal-latest.osm.pbf",
+      "contentLength": "671483495",
+      "lastModified": "Tue, 13 Oct 2026 22:55:57 GMT",
+      "status": 200
+    }
+  ]
+}

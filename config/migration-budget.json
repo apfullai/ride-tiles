@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "apfullai/rides-tiles",
+  "targetRepository": "apfullai/ride-tiles",
+  "month": "2026-10",
+  "state": "finalized",
+  "oldPublisherPaused": true,
+  "publisherPausedAt": "2026-10-15T15:29:38Z",
+  "runtime": {
+    "complete": true,
+    "usedMinutes": 28,
+    "observedAt": "2026-10-15T15:30:28.071Z",
+    "evidenceRunIds": [
+      38749468565,
+      38619620372,
+      38608788088,
+      38311369329,
+      38310985039,
+      38290673759
+    ]
+  },
+  "artifacts": {
+    "complete": true,
+    "unexpiredArtifactBytes": 0,
+    "unexpiredArtifactCount": 0,
+    "observedAt": "2026-10-15T21:24:11.068Z"
+  }
+}

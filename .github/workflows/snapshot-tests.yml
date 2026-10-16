@@ -1,0 +1,27 @@
+name: Verify offline snapshot maintenance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['publishing/**', 'bootstrap/**', 'tools/**', 'tests/**', 'config/**', 'research/**', 'requirements*.txt', '.github/workflows/**', '!config/rollout-request.json']
+  push:
+    branches: [main]
+    paths: ['publishing/**', 'bootstrap/**', 'tools/**', 'tests/**', 'config/**', 'research/**', 'requirements*.txt', '.github/workflows/**', '!config/rollout-request.json']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies without caches
+        run: python -m pip install --no-cache-dir --disable-pip-version-check -r requirements-dev.txt
+      - name: Test queue and generator semantics
+        run: python -m unittest discover -s tests -v
+      - name: Test offline reconstruction, preservation and integrity guards
+        run: python -m unittest discover -s publishing/tests -v

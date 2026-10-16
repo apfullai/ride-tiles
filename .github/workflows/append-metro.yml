@@ -1,0 +1,16 @@
+name: Retired snapshot publisher (use gradual rollout)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ride-tiles-pages
+  cancel-in-progress: false
+jobs:
+  retired:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - run: |
+          echo 'This legacy publisher is retired to prevent rollback of expanded coverage.'
+          echo 'Run rollout.yml using a fresh workflow dispatch. It restores the latest live snapshot and checks the monthly budget.'
