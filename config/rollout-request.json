@@ -1,6 +1,8 @@
 {
-  "requestId": "migration-source-preparation-2026-10-15",
+  "requestId": "seed-preserved-publication-2026-10-16T0131Z",
   "startRegion": "",
-  "seedMigration": false,
-  "purpose": "Prepare verified source only; explicit seed request follows budget admission"
+  "seedMigration": true,
+  "verifiedCommit": "1760079a4723928e6d8b1718f5cb37ede64a6f99",
+  "verificationRun": 38835213326,
+  "purpose": "Copy the exact preserved public publication through unchanged runtime and artifact gates; no city build"
 }
