@@ -1,6 +1,6 @@
 name: Refresh coverage and gradually add US cities
 on:
-  # Scheduling remains paused until the seed and consumer cutover are verified.
+  # Scheduling remains paused until migration and consumer cutover are verified.
   workflow_dispatch:
     inputs:
       seed_migration:
@@ -62,6 +62,8 @@ jobs:
       - name: Check artifact capacity before setup or bulk restore
         if: steps.ready.outputs.eligible == 'true'
         id: capacity
+        env:
+          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
         run: |
           args=()
           if [ "${{ steps.mode.outputs.seed }}" = true ]; then args+=(--seed-migration); fi
@@ -69,6 +71,8 @@ jobs:
       - name: Reserve monthly runtime using public Actions history
         if: steps.ready.outputs.eligible == 'true' && steps.capacity.outputs.allowed == 'true'
         id: budget
+        env:
+          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
         run: >-
           timeout --signal=TERM --kill-after=5s 65s
           python publishing/actions_budget.py
@@ -101,6 +105,7 @@ jobs:
         id: rollout
         timeout-minutes: 10
         env:
+          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
           ALLOW_NEW: ${{ needs.budget.outputs.allow_new }}
           START_REGION: ${{ needs.budget.outputs.start_region }}
         run: |
@@ -114,6 +119,8 @@ jobs:
           timeout --signal=TERM --kill-after=10s 540s python publishing/resumable_rollout.py "${args[@]}"
       - name: Check active artifact storage before upload
         id: storage
+        env:
+          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
         if: steps.rollout.outputs.changed == 'true'
         timeout-minutes: 1
         run: python publishing/artifact_budget.py --repository "${GITHUB_REPOSITORY}" --site site

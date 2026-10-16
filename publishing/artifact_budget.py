@@ -6,7 +6,7 @@ failed-run artifacts. Reserve an uncompressed tar upper bound for the candidate
 site plus 1% and 64 KiB for gzip/ZIP transport overhead; never rely on compression
 savings. Every file/directory gets a tar header, every file is padded to a
 512-byte block, and long path and PAX metadata overhead are reserved as well.
-No artifacts are deleted and no authentication tokens are read or sent.
+No artifacts are deleted. An existing job token may authenticate same-repo reads.
 
 The publishing workflows must share ride-tiles-pages concurrency and no process
 may mutate the candidate between this check and upload. This is a conservative

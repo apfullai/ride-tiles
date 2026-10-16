@@ -28,8 +28,8 @@ import os
 from pathlib import Path
 import re
 import time
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 
 CAP_MINUTES = 100
@@ -63,16 +63,39 @@ class BudgetUnavailable(ValueError):
     """The public history cannot establish a safe admission decision."""
 
 
+class NoApiRedirects(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise BudgetUnavailable("API redirects are not allowed")
+
+
+def api_read_headers(url):
+    """Optional existing job token is confined to this repository's API reads."""
+    parsed = urlsplit(url)
+    if (parsed.scheme != "https" or parsed.netloc != "api.github.com"
+            or parsed.fragment or not parsed.path.startswith("/repos/")):
+        raise BudgetUnavailable("unexpected API destination")
+    headers = {"Accept": "application/vnd.github+json",
+               "X-GitHub-Api-Version": "2022-11-28",
+               "User-Agent": "ride-tiles-actions-budget"}
+    token = os.environ.get("TILE_GITHUB_READ_TOKEN")
+    target_path = "/repos/" + MIGRATION_TARGET_REPOSITORY + "/"
+    endpoint = parsed.path.removeprefix(target_path)
+    permitted = re.fullmatch(
+        r"actions/(?:artifacts|runs(?:/[1-9][0-9]*(?:/attempts/[1-9][0-9]*/jobs)?)?|"
+        r"workflows/snapshot-tests\.yml/runs)|git/trees/[0-9a-f]{40}", endpoint)
+
+    if (token and os.environ.get("GITHUB_REPOSITORY") == MIGRATION_TARGET_REPOSITORY
+            and parsed.path.startswith(target_path) and permitted):
+        headers["Authorization"] = "Bearer " + token
+    return headers
+
+
 def fetch_public_json(url):
-    """Read only api.github.com over HTTPS, deliberately without credentials."""
+    """Read bounded public metadata; never follow a credential-bearing redirect."""
     if not url.startswith("https://api.github.com/repos/"):
         raise BudgetUnavailable("unexpected API destination")
-    request = Request(url, headers={
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "rides-tiles-actions-budget",
-    })
-    with urlopen(request, timeout=5) as response:
+    request = Request(url, headers=api_read_headers(url))
+    with build_opener(NoApiRedirects()).open(request, timeout=5) as response:
         if response.status != 200 or response.geturl() != url:
             raise BudgetUnavailable("unexpected API response or redirect")
         body = response.read(MAX_RESPONSE_BYTES + 1)

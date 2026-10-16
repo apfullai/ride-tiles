@@ -13,7 +13,7 @@ import re
 import time
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 
-from actions_budget import BudgetUnavailable, _pages, _timestamp, artifact_repositories
+from actions_budget import BudgetUnavailable, _pages, _timestamp, artifact_repositories, api_read_headers
 from artifact_budget import (CAP_BYTES, TAR_BLOCK_BYTES, TAR_RECORD_BYTES,
                              UPLOAD_OVERHEAD_BYTES, _round_up)
 from rollout_snapshot import (BASE, DESCRIPTOR, MAX_FILE_BYTES, MAX_MANIFEST_BYTES,
@@ -37,8 +37,10 @@ def fetch_bytes(url, limit):
                              for name in ('manifest.json', 'snapshot.json'))
             or re.fullmatch(r'https://api\.github\.com/repos/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/artifacts\?per_page=100&page=[1-9][0-9]*', url)):
         raise BudgetUnavailable('Unexpected capacity metadata destination')
-    request = Request(url, headers={'User-Agent': 'Ride-Early-Capacity/1',
-                                   'Cache-Control': 'no-cache'})
+    headers = {'User-Agent': 'Ride-Early-Capacity/1', 'Cache-Control': 'no-cache'}
+    if url.startswith('https://api.github.com/'):
+        headers.update(api_read_headers(url))
+    request = Request(url, headers=headers)
     with build_opener(NoRedirects()).open(request, timeout=3) as response:
         if response.status != 200 or response.geturl() != url:
             raise BudgetUnavailable('Unexpected capacity metadata response or redirect')

@@ -15,7 +15,7 @@ Standalone code is MIT-licensed; this does not relicense the OSM data.
 
 ## Gradual rollout and refresh
 
-The authoritative publisher is `.github/workflows/rollout.yml`. Automatic scheduling is paused during the verified repository migration. After cutover, Monday at 09:23 UTC selects eligible work; daily continuation checks resume only an active city. Manual dispatch or a deliberate `config/rollout-request.json` change may request an admitted run. Ordinary source pushes only verify code. Legacy publishers cannot deploy.
+The authoritative publisher is `.github/workflows/rollout.yml`. Scheduling remains paused until migration and consumer cutover are verified. The original daily 09:23 UTC cadence will then be restored; Monday selects eligible work and other days resume only an active city. Manual dispatch or a deliberate `config/rollout-request.json` change may request an admitted run. Ordinary source pushes only verify code. Legacy publishers cannot deploy.
 
 Each admitted run advances one durable coarse checkpoint: a pinned state crop, canonical index, time-bounded group of tile batches, or final promotion. One city is active at a time. The active map manifest stays unchanged until the entire replacement validates; a crash can lose only the current unpublished stage. The next run verifies saved hashes and resumes. See [the operating guide](GRADUAL-ROLLOUT.md), [live progress](https://apfullai.github.io/ride-tiles/status.html), and [the city queue](CITY-ROLLOUT-QUEUE.md). Existing mutable coverage is selected oldest-due first with a 90-day target, subject to budget; neither daily completion nor coverage of all 50 cities is guaranteed.
 
@@ -31,7 +31,7 @@ Durable recovery comes from `snapshot.json` plus hash-pinned transport shards pu
 
 Run `python -m pip install -r requirements-dev.txt`, then `python -m unittest discover -s tests -v` and `python -m unittest discover -s publishing/tests -v`. A real generation additionally needs the official distribution's `osmium-tool`. `python tools/build_region.py` remains a legacy local-generation tool, not a deployment path. Output directories must be fresh.
 
-Publication uses the existing repository's short-lived `GITHUB_TOKEN` and Pages OIDC permissions only. Accounting reads use the public API without credentials. No paid runner, new secret, private repository, custom domain or Cloudflare changes are introduced. GitHub Pages publication is public; the production Ride app and its Cloudflare regional release are separate.
+Publication uses the existing repository's short-lived `GITHUB_TOKEN` and Pages OIDC permissions only. Same-repository public API reads use the existing job token to avoid shared-runner anonymous rate limits; it is never persisted or sent to Pages, source hosts, other repositories, or redirects. No paid runner, new secret, private repository, custom domain or Cloudflare changes are introduced. GitHub Pages publication is public; the production Ride app and its Cloudflare regional release are separate.
 
 ## Manifest contract
 
@@ -43,4 +43,4 @@ This repository retains the new repository's original README and clean commit hi
 
 The old publisher was paused at 2026-10-15 15:29:38 UTC. A complete post-pause audit carries 28 rounded publishing job-minutes into the unchanged October 100-minute limit; the seed reserves the same 22 minutes as a normal rollout. This is a project admission metric, not billed GitHub minutes. A complete post-pause API audit of all 23 old-repository runs confirmed zero remaining artifacts at 2026-10-15 21:24:11 UTC. The ledger records this closeout so future updates do not depend on the old repository; new-repository artifacts remain audited against the same 250 MB guard. Expiry timestamps alone never release capacity.
 
-Complete all migration ledger and workflow changes, then verify CI, before the first checkpoint continuation. These inputs are fingerprinted. Automatic scheduling remains paused until the new publication and consumers are verified.
+Complete all migration ledger and workflow changes, then verify CI, before the first checkpoint continuation. These inputs are fingerprinted. The daily 09:23 UTC schedule is restored after the new publication and consumer gate verify; it remains capacity- and budget-gated.

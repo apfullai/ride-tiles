@@ -364,9 +364,34 @@ class ActionsBudgetTests(unittest.TestCase):
             def read(self, limit):
                 return b'{"total_count": 0, "workflow_runs": []}'
         with patch.dict(os.environ, {"GITHUB_TOKEN": "must-not-be-used", "GH_TOKEN": "must-not-be-used"}), \
-             patch.object(budget, "urlopen", return_value=Response()) as request:
+             patch.object(budget, "build_opener") as opener:
+            opener.return_value.open.return_value = Response()
             budget.fetch_public_json(Response().geturl())
+            request = opener.return_value.open
         self.assertNotIn("authorization", {key.lower() for key in request.call_args.args[0].headers})
+
+    def test_existing_job_token_is_isolated_to_exact_repository(self):
+        base = "https://api.github.com/repos/"
+        with patch.dict(os.environ, {"TILE_GITHUB_READ_TOKEN": "ephemeral-test",
+                                    "GITHUB_REPOSITORY": "apfullai/ride-tiles"}):
+            self.assertEqual(budget.api_read_headers(base + "apfullai/ride-tiles/actions/runs")["Authorization"],
+                             "Bearer ephemeral-test")
+            for suffix in ("apfullai/rides-tiles/actions/runs", "apfullai/ride-tiles-evil/actions/runs",
+                           "other/ride-tiles/actions/runs", "apfullai/ride-tiles/../other/actions/runs",
+                           "apfullai/ride-tiles/issues", "apfullai/ride-tiles/actions/runs%2F.."):
+                self.assertNotIn("Authorization", budget.api_read_headers(base + suffix))
+            for url in ("http://api.github.com/repos/apfullai/ride-tiles/a",
+                        "https://api.github.com.evil/repos/apfullai/ride-tiles/a",
+                        "https://api.github.com@evil/repos/apfullai/ride-tiles/a",
+                        "https://apfullai.github.io/ride-tiles/manifest.json"):
+                with self.assertRaises(budget.BudgetUnavailable):
+                    budget.api_read_headers(url)
+            with patch.dict(os.environ, {"GITHUB_REPOSITORY": "other/ride-tiles"}):
+                self.assertNotIn("Authorization", budget.api_read_headers(base + "apfullai/ride-tiles/actions/runs"))
+
+    def test_api_redirect_is_rejected_before_following(self):
+        with self.assertRaisesRegex(budget.BudgetUnavailable, "redirects"):
+            budget.NoApiRedirects().redirect_request(None, None, 302, "redirect", {}, "https://evil.example/")
 
     def test_cli_emits_machine_readable_allowance_and_denial(self):
         for allowed in (False, True):
