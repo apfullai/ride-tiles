@@ -1,8 +1,8 @@
 {
-  "requestId": "seed-preserved-publication-2026-10-16T0131Z",
+  "requestId": "seed-preserved-publication-2026-10-16T0142Z",
   "startRegion": "",
   "seedMigration": true,
-  "verifiedCommit": "1760079a4723928e6d8b1718f5cb37ede64a6f99",
-  "verificationRun": 38835213326,
-  "purpose": "Copy the exact preserved public publication through unchanged runtime and artifact gates; no city build"
+  "verifiedCommit": "d40a6f7da888e8b27585628db74340d89786f715",
+  "verificationRun": 38836288056,
+  "purpose": "Retry exact preserved publication after verified read-only API fix; normal gates count failed attempt; no city build"
 }
