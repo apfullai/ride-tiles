@@ -1,25 +1,8 @@
-name: Refresh coverage and gradually add US cities
+name: Publish immutable Mellow mirror without advancing cities
 on:
-  schedule:
-    - cron: '23 2 * * 1'
-    - cron: '23 2 * * 0,2-6'
-    - cron: '23 18 * * *'
-    # One-time 2026 acquisition window is also enforced before metadata reads.
-    - cron: '23 10 17-19 10 *'
-  workflow_dispatch:
-    inputs:
-      seed_migration:
-        description: Seed the exact preserved publication without building a city
-        type: boolean
-        default: false
-      start_region:
-        description: Existing mutable region to start when no city is active (blank for normal selection)
-        type: string
-        required: false
-        default: ""
   push:
-    branches: [main]
-    paths: ['config/rollout-request.json']
+    branches: [feat/mellow-z17-mirror]
+    paths: ['overlays/request.json']
 permissions:
   contents: read
 concurrency:
@@ -27,119 +10,68 @@ concurrency:
   cancel-in-progress: false
 jobs:
   budget:
-    if: github.ref == 'refs/heads/main' && (github.event_name != 'push' || contains(github.event.head_commit.message, '[rollout-request]'))
+    if: github.ref == 'refs/heads/feat/mellow-z17-mirror' && contains(github.event.head_commit.message, '[mellow-overlay]') && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       allowed: ${{ steps.budget.outputs.allowed }}
-      seed: ${{ steps.mode.outputs.seed }}
-      allow_new: ${{ steps.ready.outputs.allow_new }}
-      start_region: ${{ steps.ready.outputs.start_region }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: c9dd4771e5670b2ab4fa9df1d1eb8b5e7122d5fa
           persist-credentials: false
-      - name: Select explicit seed mode
-        id: mode
-        run: |
-          python - <<'PY'
-          import json, os
-          seed = "${{ inputs.seed_migration }}" == "true"
-          if os.environ["GITHUB_EVENT_NAME"] == "push":
-              request = json.load(open("config/rollout-request.json"))
-              seed = request.get("seedMigration", False)
-              if type(seed) is not bool: raise ValueError("Invalid seed request")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write("seed=" + str(seed).lower() + "\n")
-          PY
-      - name: Check weekly selection or active-city continuation
-        id: ready
-        env:
-          EVENT_SCHEDULE: ${{ github.event.schedule }}
-          REQUESTED_START_REGION: ${{ inputs.start_region }}
-        run: |
-          if [ "${{ steps.mode.outputs.seed }}" = true ]; then
-            echo "eligible=true" >> "$GITHUB_OUTPUT"
-            echo "allow_new=false" >> "$GITHUB_OUTPUT"
-          else
-            timeout --signal=TERM --kill-after=5s 15s python publishing/continuation_gate.py
-          fi
-      - name: Check artifact capacity before setup or bulk restore
-        if: steps.ready.outputs.eligible == 'true'
+      - name: Check existing artifact capacity before bulk restore
         id: capacity
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-        run: |
-          args=()
-          if [ "${{ steps.mode.outputs.seed }}" = true ]; then args+=(--seed-migration); fi
-          timeout --signal=TERM --kill-after=2s 20s python publishing/early_capacity.py "${args[@]}"
-      - name: Reserve monthly runtime using public Actions history
-        if: steps.ready.outputs.eligible == 'true' && steps.capacity.outputs.allowed == 'true'
+        run: timeout --signal=TERM --kill-after=2s 20s python publishing/early_capacity.py
+      - name: Reserve existing monthly publisher budget
         id: budget
+        if: steps.capacity.outputs.allowed == 'true'
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-        run: >-
-          timeout --signal=TERM --kill-after=5s 65s
-          python publishing/actions_budget.py
-          --repository "${GITHUB_REPOSITORY}"
-          --run-id "${GITHUB_RUN_ID}"
-          --attempt "${GITHUB_RUN_ATTEMPT}"
+        run: timeout --signal=TERM --kill-after=5s 65s python publishing/actions_budget.py --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
   build:
     needs: budget
     if: needs.budget.outputs.allowed == 'true' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
-      changed: ${{ steps.rollout.outputs.changed == 'true' && steps.storage.outputs.allowed == 'true' }}
-      restored_publication_revision: ${{ steps.rollout.outputs.restored_publication_revision }}
+      allowed: ${{ steps.storage.outputs.allowed }}
+      revision: ${{ steps.prepare.outputs.restored_publication_revision }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: c9dd4771e5670b2ab4fa9df1d1eb8b5e7122d5fa
+          path: publisher
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: overlay-source
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install official tools without caches
-        if: needs.budget.outputs.seed != 'true'
-        timeout-minutes: 2
-        run: |
-          sudo timeout --signal=TERM --kill-after=5s 70s apt-get update -qq
-          sudo timeout --signal=TERM --kill-after=5s 40s apt-get install -y osmium-tool
-          timeout --signal=TERM --kill-after=5s 30s python -m pip install --no-cache-dir --disable-pip-version-check -r requirements-dev.txt
-      - name: Verify code and advance one durable city checkpoint
-        id: rollout
-        timeout-minutes: 10
+      - name: Test overlay integrity and unchanged publisher roundtrip
         env:
-          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-          ALLOW_NEW: ${{ needs.budget.outputs.allow_new }}
-          ACQUISITION_ONLY: ${{ github.event_name == 'schedule' && github.event.schedule == '23 10 17-19 10 *' }}
-          START_REGION: ${{ needs.budget.outputs.start_region }}
-        run: |
-          if [ "${{ needs.budget.outputs.seed }}" = true ]; then
-            timeout --signal=TERM --kill-after=10s 540s python publishing/seed_migration.py
-            exit
-          fi
-          args=(--continue-only)
-          if [ "$ALLOW_NEW" = true ]; then args=(--allow-new); fi
-          if [ -n "$START_REGION" ]; then args+=(--start-region "$START_REGION"); fi
-          if [ "$ACQUISITION_ONLY" = true ]; then args+=(--acquisition-only); fi
-          timeout --signal=TERM --kill-after=10s 540s python publishing/resumable_rollout.py "${args[@]}"
-      - name: Check active artifact storage before upload
+          PUBLISHER_ROOT: ${{ github.workspace }}/publisher
+        run: python -m unittest discover -s overlay-source/overlays -p 'test_*.py' -v
+      - name: Restore complete current site and add only immutable overlay
+        id: prepare
+        run: timeout --signal=TERM --kill-after=10s 540s python overlay-source/overlays/publish_overlay.py --publisher publisher --pin overlay-source/overlays/source-pin.json --site site --report overlay-report.json
+      - name: Verify actual artifact size remains within free budget
         id: storage
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-        if: steps.rollout.outputs.changed == 'true'
-        timeout-minutes: 1
-        run: python publishing/artifact_budget.py --repository "${GITHUB_REPOSITORY}" --site site
-      - name: Upload only a changed and fully validated site
-        if: steps.rollout.outputs.changed == 'true' && steps.storage.outputs.allowed == 'true'
-        uses: actions/upload-pages-artifact@v3
+        run: python publisher/publishing/artifact_budget.py --repository "$GITHUB_REPOSITORY" --site site
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.storage.outputs.allowed == 'true'
         with:
           path: site
           retention-days: 1
   deploy:
     needs: [budget, build]
-    if: needs.budget.outputs.allowed == 'true' && needs.build.outputs.changed == 'true' && github.run_attempt == 1
+    if: needs.build.outputs.allowed == 'true' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -152,24 +84,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: c9dd4771e5670b2ab4fa9df1d1eb8b5e7122d5fa
           persist-credentials: false
-      - name: Refuse to overwrite a changed live publication
+      - name: Refuse overwrite if live snapshot changed
         env:
-          SEED_MIGRATION: ${{ needs.budget.outputs.seed }}
-          EXPECTED_PUBLICATION_REVISION: ${{ needs.build.outputs.restored_publication_revision }}
+          EXPECTED_PUBLICATION_REVISION: ${{ needs.build.outputs.revision }}
         run: |
           python - <<'PY'
-          import os, sys
-          sys.path.insert(0, 'publishing')
+          import os,sys
+          sys.path.insert(0,'publishing')
           from rollout_snapshot import assert_publication_unchanged
-          from public_origin import OLD_BASE, BASE
-          origin = OLD_BASE if os.environ['SEED_MIGRATION'] == 'true' else BASE
-          assert_publication_unchanged(os.environ['EXPECTED_PUBLICATION_REVISION'], origin)
-          if os.environ['SEED_MIGRATION'] == 'true':
-              from seed_migration import assert_destination_absent
-              assert_destination_absent()
+          assert_publication_unchanged(os.environ['EXPECTED_PUBLICATION_REVISION'])
           PY
       - uses: actions/configure-pages@v5
-      - name: Publish validated coverage atomically
+      - uses: actions/deploy-pages@v4
         id: deployment
-        uses: actions/deploy-pages@v4
