@@ -4,6 +4,20 @@ from pathlib import Path
 from merge_overlay import inventory,merge,sha
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+ def redirect_request(self, req, fp, code, msg, headers, newurl):
+  # Reject before constructing or sending any request to the Location target.
+  return None
+
+
+def download_archive(url):
+ opener=urllib.request.build_opener(NoRedirect())
+ with opener.open(url,timeout=30) as response:
+  if response.status!=200 or response.geturl()!=url:
+   raise ValueError('Unexpected archive response')
+  return response.read(24_000_001)
+
+
 def extract_zip(archive, destination, expected_hash):
  data=Path(archive).read_bytes()
  if len(data)>24_000_000 or sha(data)!=expected_hash:raise ValueError('Archive identity mismatch')
@@ -24,6 +38,17 @@ def extract_zip(archive, destination, expected_hash):
    p=destination/e.filename;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(z.read(e))
 
 
+def assert_checkpoint_compatible(checkpoint, publisher, fingerprint):
+ checkpoint=Path(checkpoint)
+ if not checkpoint.exists():return
+ parsed=json.loads(checkpoint.read_bytes())
+ if parsed.get('codeFingerprint')==fingerprint:return
+ from checkpoint_migrations import eligible
+ if not eligible(checkpoint.parent,parsed,publisher):
+  raise ValueError('Active city fingerprint differs without exact existing compatibility proof')
+ # Eligibility is read-only. Never migrate or rewrite this preserved checkpoint.
+
+
 def prepare(publisher, payload, pin, site, report):
  publisher=Path(publisher).resolve();site=Path(site).resolve()
  sys.path.insert(0,str(publisher/'publishing'))
@@ -35,8 +60,7 @@ def prepare(publisher, payload, pin, site, report):
  before=data_inventory(site)
  checkpoint_files={p:h for p,h in before.items() if p.startswith('checkpoints/')}
  checkpoint=site/'checkpoints/active/checkpoint.json'
- if checkpoint.exists() and json.loads(checkpoint.read_bytes()).get('codeFingerprint')!=fingerprint:
-  raise ValueError('Active city fingerprint differs from exact pinned publisher')
+ assert_checkpoint_compatible(checkpoint,publisher,fingerprint)
  result=merge(site,payload,pin['manifestSHA256'],pin['version'])
  sealed=seal_snapshot(site);validate_site(site)
  after=data_inventory(site)
@@ -56,9 +80,7 @@ def main():
  if pin['url']!=expected:raise ValueError('Unexpected source URL')
  with tempfile.TemporaryDirectory() as d:
   archive=Path(d)/'source.zip'
-  with urllib.request.urlopen(pin['url'],timeout=30) as r:
-   if r.geturl()!=pin['url']:raise ValueError('Unexpected source redirect')
-   data=r.read(24_000_001)
+  data=download_archive(pin['url'])
   if len(data)!=pin['bytes'] or len(data)>24_000_000:raise ValueError('Archive byte count mismatch')
   archive.write_bytes(data);payload=Path(d)/'xyz';extract_zip(archive,payload,pin['sha256'])
   prepare(a.publisher,payload,pin,a.site,a.report)
