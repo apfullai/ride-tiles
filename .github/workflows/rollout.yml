@@ -58,7 +58,7 @@ jobs:
         run: python -m unittest discover -s overlay-source/overlays -p 'test_*.py' -v
       - name: Restore complete current site and add only immutable overlay
         id: prepare
-        run: timeout --signal=TERM --kill-after=10s 540s python overlay-source/overlays/publish_overlay.py --publisher publisher --pin overlay-source/overlays/source-pin.json --site site --report overlay-report.json && cat overlay-report.json
+        run: timeout --signal=TERM --kill-after=10s 540s python overlay-source/overlays/publish_overlay.py --archive-parts overlay-source/overlays/archive --publisher publisher --pin overlay-source/overlays/source-pin.json --site site --report overlay-report.json && cat overlay-report.json
       - name: Verify actual artifact size remains within free budget
         id: storage
         env:
