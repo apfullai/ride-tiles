@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: c9dd4771e5670b2ab4fa9df1d1eb8b5e7122d5fa
+          ref: ae037d0d4e37e82314a679006ebe4d86bc0497f5
           persist-credentials: false
       - name: Check existing artifact capacity before bulk restore
         id: capacity
@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: c9dd4771e5670b2ab4fa9df1d1eb8b5e7122d5fa
+          ref: ae037d0d4e37e82314a679006ebe4d86bc0497f5
           path: publisher
           persist-credentials: false
       - uses: actions/checkout@v4
@@ -55,20 +55,31 @@ jobs:
       - name: Test overlay integrity and unchanged publisher roundtrip
         env:
           PUBLISHER_ROOT: ${{ github.workspace }}/publisher
-        run: python -m unittest discover -s overlay-source/overlays -p 'test_*.py' -v
+        run: timeout --signal=TERM --kill-after=5s 90s python -m unittest discover -s overlay-source/overlays -p 'test_*.py' -v
       - name: Restore complete current site and add only immutable overlay
         id: prepare
-        run: timeout --signal=TERM --kill-after=10s 540s python overlay-source/overlays/publish_overlay.py --archive-parts overlay-source/overlays/archive --publisher publisher --pin overlay-source/overlays/source-pin.json --site site --report overlay-report.json && cat overlay-report.json
+        run: timeout --signal=TERM --kill-after=10s 450s python overlay-source/overlays/publish_overlay.py --archive-parts overlay-source/overlays/archive --publisher publisher --pin overlay-source/overlays/source-pin.json --site site --report overlay-report.json && cat overlay-report.json
       - name: Verify actual artifact size remains within free budget
         id: storage
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-        run: python publisher/publishing/artifact_budget.py --repository "$GITHUB_REPOSITORY" --site site
-      - uses: actions/upload-pages-artifact@v3
+        run: timeout --signal=TERM --kill-after=5s 90s python publisher/publishing/exact_artifact.py --publisher publisher --repository "$GITHUB_REPOSITORY" --site site --archive "$RUNNER_TEMP/ride-pages/artifact.tar" --receipt exact-artifact.json
+      - uses: actions/upload-artifact@v4
+        timeout-minutes: 2
+        id: upload
         if: steps.storage.outputs.allowed == 'true'
         with:
-          path: site
+          name: github-pages
+          path: ${{ runner.temp }}/ride-pages/artifact.tar
           retention-days: 1
+          if-no-files-found: error
+          compression-level: 0
+      - name: Check actual uploaded artifact and fresh total before deployment
+        env:
+          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
+          UPLOADED_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: timeout --signal=TERM --kill-after=5s 60s python publisher/publishing/verify_uploaded_artifact.py --publisher publisher --receipt exact-artifact.json
+
   deploy:
     needs: [budget, build]
     if: needs.build.outputs.allowed == 'true' && github.run_attempt == 1
@@ -84,7 +95,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: c9dd4771e5670b2ab4fa9df1d1eb8b5e7122d5fa
+          ref: ae037d0d4e37e82314a679006ebe4d86bc0497f5
           persist-credentials: false
       - name: Refuse overwrite if live snapshot changed
         env:

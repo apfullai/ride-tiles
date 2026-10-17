@@ -1,1 +1,1 @@
-{"version": "2bafe73bf6586407", "request": 3, "verifiedTestCommit": "97c19f7bfe6c2e77f0e19a6a056b7584106885b1", "source": "verified-local-parts", "cleanupRun": 39020508962}
+{"version": "2bafe73bf6586407", "request": 4, "publisherCommit": "ae037d0d4e37e82314a679006ebe4d86bc0497f5", "purpose": "Publish verified immutable overlay with exact artifact measurement and checkpoint preservation"}
