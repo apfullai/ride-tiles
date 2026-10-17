@@ -1,0 +1,28 @@
+name: Delete one verified published Pages artifact
+on:
+  push:
+    branches: [feat/mellow-z17-mirror]
+    paths: ['cleanup/request.json']
+permissions:
+  contents: read
+concurrency:
+  group: ride-tiles-pages
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.ref == 'refs/heads/feat/mellow-z17-mirror' && contains(github.event.head_commit.message, '[cleanup-verified-artifact-12092658917]') && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test exact target and refusal guards without network
+        run: python -m unittest discover -s cleanup -p 'test_*.py' -v
+      - name: Delete only verified published artifact and confirm recovery hashes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: timeout --signal=TERM --kill-after=5s 240s python -u cleanup/delete_verified_artifact.py
