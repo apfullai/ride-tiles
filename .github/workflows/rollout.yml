@@ -1,8 +1,8 @@
-name: Publish immutable Mellow mirror without advancing cities
+name: Continue exact verified mirror artifact deployment
 on:
   push:
     branches: [feat/mellow-z17-mirror]
-    paths: ['overlays/request.json']
+    paths: ['continuation/request.json']
 permissions:
   contents: read
 concurrency:
@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   budget:
-    if: github.ref == 'refs/heads/feat/mellow-z17-mirror' && contains(github.event.head_commit.message, '[mellow-overlay]') && github.run_attempt == 1
+    if: github.ref == 'refs/heads/feat/mellow-z17-mirror' && contains(github.event.head_commit.message, '[continue-mirror-artifact-12096579037]') && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
@@ -20,69 +20,14 @@ jobs:
         with:
           ref: ae037d0d4e37e82314a679006ebe4d86bc0497f5
           persist-credentials: false
-      - name: Check existing artifact capacity before bulk restore
-        id: capacity
-        env:
-          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-        run: timeout --signal=TERM --kill-after=2s 20s python publishing/early_capacity.py
-      - name: Reserve existing monthly publisher budget
+      - name: Reserve unchanged monthly publisher budget
         id: budget
-        if: steps.capacity.outputs.allowed == 'true'
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
         run: timeout --signal=TERM --kill-after=5s 65s python publishing/actions_budget.py --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
-  build:
+  deploy:
     needs: budget
     if: needs.budget.outputs.allowed == 'true' && github.run_attempt == 1
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    outputs:
-      allowed: ${{ steps.storage.outputs.allowed }}
-      revision: ${{ steps.prepare.outputs.restored_publication_revision }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ae037d0d4e37e82314a679006ebe4d86bc0497f5
-          path: publisher
-          persist-credentials: false
-      - uses: actions/checkout@v4
-        with:
-          path: overlay-source
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Test overlay integrity and unchanged publisher roundtrip
-        env:
-          PUBLISHER_ROOT: ${{ github.workspace }}/publisher
-        run: timeout --signal=TERM --kill-after=5s 90s python -m unittest discover -s overlay-source/overlays -p 'test_*.py' -v
-      - name: Restore complete current site and add only immutable overlay
-        id: prepare
-        run: timeout --signal=TERM --kill-after=10s 450s python overlay-source/overlays/publish_overlay.py --archive-parts overlay-source/overlays/archive --publisher publisher --pin overlay-source/overlays/source-pin.json --site site --report overlay-report.json && cat overlay-report.json
-      - name: Verify actual artifact size remains within free budget
-        id: storage
-        env:
-          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-        run: timeout --signal=TERM --kill-after=5s 90s python publisher/publishing/exact_artifact.py --publisher publisher --repository "$GITHUB_REPOSITORY" --site site --archive "$RUNNER_TEMP/ride-pages/artifact.tar" --receipt exact-artifact.json
-      - uses: actions/upload-artifact@v4
-        timeout-minutes: 2
-        id: upload
-        if: steps.storage.outputs.allowed == 'true'
-        with:
-          name: github-pages
-          path: ${{ runner.temp }}/ride-pages/artifact.tar
-          retention-days: 1
-          if-no-files-found: error
-          compression-level: 0
-      - name: Check actual uploaded artifact and fresh total before deployment
-        env:
-          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
-          UPLOADED_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
-        run: timeout --signal=TERM --kill-after=5s 60s python publisher/publishing/verify_uploaded_artifact.py --publisher publisher --receipt exact-artifact.json
-
-  deploy:
-    needs: [budget, build]
-    if: needs.build.outputs.allowed == 'true' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -91,22 +36,28 @@ jobs:
       id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: continuation-source
       - uses: actions/checkout@v4
         with:
           ref: ae037d0d4e37e82314a679006ebe4d86bc0497f5
           persist-credentials: false
-      - name: Refuse overwrite if live snapshot changed
+          path: publisher
+      - name: Verify exact artifact and current publication without downloading it
         env:
-          EXPECTED_PUBLICATION_REVISION: ${{ needs.build.outputs.revision }}
-        run: |
-          python - <<'PY'
-          import os,sys
-          sys.path.insert(0,'publishing')
-          from rollout_snapshot import assert_publication_unchanged
-          assert_publication_unchanged(os.environ['EXPECTED_PUBLICATION_REVISION'])
-          PY
-      - uses: actions/configure-pages@v5
-      - uses: actions/deploy-pages@v4
-        id: deployment
+          GH_TOKEN: ${{ github.token }}
+        run: timeout --signal=TERM --kill-after=3s 60s python continuation-source/continuation/guard.py
+      - name: One documented Pages REST deployment
+        timeout-minutes: 3
+        uses: actions/github-script@v7
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          retries: 0
+          script: |
+            const {run} = require(process.env.GITHUB_WORKSPACE + '/continuation-source/continuation/deploy.cjs');
+            try { await run({core}); }
+            catch (e) { core.setFailed(e.message); }
