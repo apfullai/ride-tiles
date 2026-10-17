@@ -1,0 +1,37 @@
+name: Verify actual GitHub Mellow fallback in canonical test app
+on:
+  push:
+    branches: [feat/mellow-z17-mirror]
+    paths: ['overlays/mirror-verification/request.json']
+permissions:
+  contents: read
+jobs:
+  browser:
+    if: contains(github.event.head_commit.message, '[verify-mellow-mirror]') && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test bounded request and rendering contract
+        run: python -m unittest discover -s overlays/mirror-verification -p 'test_*.py' -v
+      - name: Install pinned ordinary browser
+        run: |
+          timeout -k 5s 60s python -m pip install --disable-pip-version-check playwright==1.55.0
+          timeout -k 5s 100s python -m playwright install --with-deps chromium
+      - name: Verify actual mirror rendering after primary-only synthetic failure
+        run: timeout -k 5s 120s python overlays/mirror-verification/verify_live_mirror.py --output evidence/actual-github-mirror --asset-version 5dc4593aa32caa4b --commit-prefix 97c19f7b
+      - name: Print bounded result
+        if: always()
+        run: test ! -f evidence/actual-github-mirror/mirror.json || cat evidence/actual-github-mirror/mirror.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: actual-github-mellow-mirror-proof
+          path: evidence/actual-github-mirror
+          if-no-files-found: ignore
+          retention-days: 1
