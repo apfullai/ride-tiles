@@ -129,14 +129,25 @@ jobs:
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
         if: steps.rollout.outputs.changed == 'true'
-        timeout-minutes: 1
-        run: python publishing/artifact_budget.py --repository "${GITHUB_REPOSITORY}" --site site
+        timeout-minutes: 3
+        run: python publishing/exact_artifact.py --publisher . --repository "${GITHUB_REPOSITORY}" --site site --archive "$RUNNER_TEMP/ride-pages/artifact.tar" --receipt exact-artifact.json
       - name: Upload only a changed and fully validated site
         if: steps.rollout.outputs.changed == 'true' && steps.storage.outputs.allowed == 'true'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@v4
+        id: upload
         with:
-          path: site
+          name: github-pages
+          path: ${{ runner.temp }}/ride-pages/artifact.tar
           retention-days: 1
+          if-no-files-found: error
+          compression-level: 0
+      - name: Verify uploaded artifact stays within exact allowance
+        if: steps.rollout.outputs.changed == 'true' && steps.storage.outputs.allowed == 'true'
+        env:
+          TILE_GITHUB_READ_TOKEN: ${{ github.token }}
+          UPLOADED_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: python publishing/verify_uploaded_artifact.py --publisher . --receipt exact-artifact.json
+
   deploy:
     needs: [budget, build]
     if: needs.budget.outputs.allowed == 'true' && needs.build.outputs.changed == 'true' && github.run_attempt == 1

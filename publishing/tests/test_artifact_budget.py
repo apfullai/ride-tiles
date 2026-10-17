@@ -131,10 +131,10 @@ class ArtifactBudgetTests(unittest.TestCase):
         (self.site / "empty").write_bytes(b"")
         (self.site / ".hidden").write_bytes(b"hidden files are included conservatively")
         allowance = budget.candidate_allowance(self.site)
-        archive = io.BytesIO()
-        with tarfile.open(fileobj=archive, mode="w", format=tarfile.PAX_FORMAT) as stream:
-            stream.add(self.site, arcname=".")
-        raw = archive.getvalue()
+        from exact_artifact import pack
+        target = Path(self.temp.name)/"artifact.tar"
+        pack(self.site, target)
+        raw = target.read_bytes()
         self.assertGreaterEqual(allowance["tarBytesUpperBound"], len(raw))
         self.assertGreaterEqual(allowance["candidateBytes"], len(gzip.compress(raw)))
         self.assertEqual(allowance["fileCount"], 4)

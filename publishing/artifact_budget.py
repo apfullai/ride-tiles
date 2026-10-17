@@ -2,10 +2,11 @@
 """Fail closed before a Pages upload would exceed 250 MB of repo artifacts.
 
 Sum ALL artifacts reported as unexpired, including old pilot artifacts and
-failed-run artifacts. Reserve an uncompressed tar upper bound for the candidate
-site plus 1% and 64 KiB for gzip/ZIP transport overhead; never rely on compression
-savings. Every file/directory gets a tar header, every file is padded to a
-512-byte block, and long path and PAX metadata overhead are reserved as well.
+failed-run artifacts. Reserve the fixed-format GNU tar size plus 1% and 64 KiB
+for ZIP transport overhead; never rely on compression savings. The metadata
+formula includes every file/directory header, 512-byte file padding, GNU long
+name records, EOF blocks and final record padding. The rollout upload additionally
+packs and verifies that exact tar before a fresh artifact audit.
 No artifacts are deleted. An existing job token may authenticate same-repo reads.
 
 The publishing workflows must share ride-tiles-pages concurrency and no process
@@ -44,57 +45,11 @@ def _round_up(value, block):
 
 def candidate_allowance(site):
     """Inspect a directory without following links; return conservative sizes."""
-    root = Path(site)
-    root_stat = root.lstat()
-    if not stat.S_ISDIR(root_stat.st_mode):
-        raise BudgetUnavailable("candidate site is not a plain directory")
-    site_bytes = 0
-    tar_bytes = 0
-    files = 0
-    entries = 0
-
-    def account(path, info):
-        nonlocal site_bytes, tar_bytes, files, entries
-        if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
-            raise BudgetUnavailable("candidate contains a symlink or special file")
-        entries += 1
-        relative = "." if path == root else "./" + path.relative_to(root).as_posix()
-        if stat.S_ISDIR(info.st_mode):
-            relative += "/"
-        path_bytes = len(os.fsencode(relative)) + 1
-        # Header plus a conservatively reserved PAX/long-path header and body.
-        # The 1 KiB metadata allowance also covers fractional timestamps and
-        # ownership fields if the archiver chooses PAX rather than GNU format.
-        tar_bytes += TAR_BLOCK_BYTES * 2 + _round_up(path_bytes + 1024, TAR_BLOCK_BYTES)
-        if stat.S_ISREG(info.st_mode):
-            if info.st_size < 0:
-                raise BudgetUnavailable("candidate has an invalid file size")
-            files += 1
-            site_bytes += info.st_size
-            tar_bytes += _round_up(info.st_size, TAR_BLOCK_BYTES)
-
-    account(root, root_stat)
-
-    def walk_error(error):
-        raise error
-
-    for directory, directories, filenames in os.walk(root, followlinks=False, onerror=walk_error):
-        parent = Path(directory)
-        for name in directories + filenames:
-            path = parent / name
-            account(path, path.lstat())
-    if files == 0:
-        raise BudgetUnavailable("candidate site has no files")
-    # Two EOF blocks and GNU tar's full record padding.
-    tar_bytes = _round_up(tar_bytes + 2 * TAR_BLOCK_BYTES, TAR_RECORD_BYTES)
-    candidate_bytes = tar_bytes + _round_up(tar_bytes, 100) // 100 + UPLOAD_OVERHEAD_BYTES
-    return {
-        "siteBytes": site_bytes,
-        "tarBytesUpperBound": tar_bytes,
-        "candidateBytes": candidate_bytes,
-        "fileCount": files,
-        "entryCount": entries,
-    }
+    from exact_artifact import inventory
+    from exact_tar_size import allowance
+    records = inventory(site)
+    return allowance({name: record['bytes'] for name, record in records.items()},
+                     [p.relative_to(site).as_posix() for p in Path(site).rglob('*') if p.is_dir()])
 
 
 def check_artifact_budget(repository, site, fetch=None):

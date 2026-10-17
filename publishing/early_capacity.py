@@ -56,23 +56,8 @@ def metadata_allowance(manifest, raw):
     files = {name: entry['size'] for name, entry in conf['files'].items()}
     files[DESCRIPTOR] = len(raw)
     files.update({shard['path']: shard['size'] for shard in conf['shards']})
-    directories = {'.'}
-    for name in files:
-        directories.update(str(p) for p in PurePosixPath(name).parents)
-    if any(name in files for name in directories):
-        raise BudgetUnavailable('Snapshot file/directory collision')
-    tar_bytes = 0
-    for name, size in [(name, None) for name in directories] + list(files.items()):
-        relative = '.' if name == '.' else './' + name
-        if size is None:
-            relative += '/'
-        tar_bytes += TAR_BLOCK_BYTES * 2 + _round_up(len(relative.encode('utf-8')) + 1 + 1024, TAR_BLOCK_BYTES)
-        if size is not None:
-            tar_bytes += _round_up(size, TAR_BLOCK_BYTES)
-    tar_bytes = _round_up(tar_bytes + 2 * TAR_BLOCK_BYTES, TAR_RECORD_BYTES)
-    return {'siteBytes': sum(files.values()), 'tarBytesUpperBound': tar_bytes,
-            'candidateBytes': tar_bytes + _round_up(tar_bytes, 100) // 100 + UPLOAD_OVERHEAD_BYTES,
-            'fileCount': len(files), 'entryCount': len(files) + len(directories)}
+    from exact_tar_size import allowance
+    return allowance(files)
 
 
 def retry_hint(artifacts, candidate, now):

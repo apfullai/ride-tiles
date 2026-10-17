@@ -60,6 +60,9 @@ def migration_profile(code_root):
 def eligible(checkpoint_root, checkpoint, code_root):
     """Check exact old identity plus unchanged pre-index execution semantics."""
     checkpoint_root, code_root = Path(checkpoint_root), Path(code_root)
+    from exact_pack_migration import eligible as exact_pack_eligible
+    if exact_pack_eligible(checkpoint_root, checkpoint, code_root):
+        return True
     raw = (checkpoint_root/'checkpoint.json').read_bytes()
     if (json.loads(raw) != checkpoint or checkpoint.get('codeFingerprint') != FROM_CODE
             or hashlib.sha256(raw).hexdigest() != FROM_DESCRIPTOR):
@@ -113,6 +116,9 @@ def eligible(checkpoint_root, checkpoint, code_root):
 
 def migrate(checkpoint_root, checkpoint, code_root, *, target_fingerprint, verified_fingerprint, now):
     """Return an audited descriptor after tests; never mutate preserved files."""
+    from exact_pack_migration import eligible as exact_pack_eligible, migrate as exact_pack_migrate
+    if exact_pack_eligible(checkpoint_root, checkpoint, code_root):
+        return exact_pack_migrate(checkpoint_root, checkpoint, code_root, target_fingerprint=target_fingerprint, verified_fingerprint=verified_fingerprint, now=now)
     if (target_fingerprint != verified_fingerprint or target_fingerprint == FROM_CODE
             or not eligible(checkpoint_root, checkpoint, code_root)):
         raise ValueError('Checkpoint is not authorized for the source-package migration')

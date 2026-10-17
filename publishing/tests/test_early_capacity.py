@@ -198,7 +198,7 @@ class EarlyCapacityTests(unittest.TestCase):
         self.assertIn('20s python publishing/early_capacity.py', workflow)
         self.assertIn('65s',workflow)
         self.assertNotIn('actions: write',workflow)
-        self.assertIn('python publishing/artifact_budget.py',workflow)
+        self.assertIn('python publishing/exact_artifact.py',workflow)
         self.assertIn('assert_publication_unchanged',workflow)
 
 
