@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -45,7 +46,11 @@ class AttemptReceiptMainTests(unittest.TestCase):
                           'retryAfter': self.checkpoint['retryAfter'], 'needsAttention': False,
                           'reason': 'history permits work'}
         self.addCleanup(patch.stopall)
-        patch.dict(os.environ, {'GITHUB_REPOSITORY': receipts.REPOSITORY,
+        started = time.monotonic()
+        patch.dict(os.environ, {'GITHUB_ACTIONS': 'true',
+                               'RIDE_BUILD_STARTED': str(started),
+                               'RIDE_BUILD_DEADLINE': str(started + rollout.BUILD_SECONDS),
+                               'GITHUB_REPOSITORY': receipts.REPOSITORY,
                                'GITHUB_RUN_ID': '101', 'GITHUB_RUN_ATTEMPT': '1',
                                'GITHUB_SHA': COMMIT, 'GITHUB_OUTPUT': str(self.output),
                                'GITHUB_STEP_SUMMARY': str(self.summary)}).start()
