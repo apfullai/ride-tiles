@@ -4,12 +4,12 @@
 This is an elapsed runner-minute guard, not GitHub billing data. Each completed
 job in every visible attempt is rounded up separately. A job crossing the UTC
 month boundary is charged in full in the current month (conservative). The
-current gate is covered by the full 2 + 15 + 5 minute reservation rather than
+current gate is covered by the full 2 + 24 + 5 minute reservation rather than
 counted twice. All other completed jobs, including failures and prior attempts,
 are counted. A competing unfinished publishing run prevents admission.
 
 The workflow must use the shared ride-tiles-pages concurrency group, enforce
-budget/build/deploy timeouts of 2/15/5 minutes, and prohibit rerunning only failed
+budget/build/deploy timeouts of 2/24/5 minutes, and prohibit rerunning only failed
 build/deploy jobs with an old successful gate. Future publishers must be added
 to PUBLISHING_WORKFLOWS. Deleted/expired run history cannot be reconstructed.
 Unlimited dispatches or gate-only reruns can themselves consume minutes, so a
@@ -33,7 +33,7 @@ from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 
 CAP_MINUTES = 100
-JOB_TIMEOUT_MINUTES = {"budget": 2, "build": 15, "deploy": 5}
+JOB_TIMEOUT_MINUTES = {"budget": 2, "build": 24, "deploy": 5}
 RESERVED_MINUTES = sum(JOB_TIMEOUT_MINUTES.values())
 PUBLISHING_WORKFLOWS = frozenset({
     ".github/workflows/rollout.yml",

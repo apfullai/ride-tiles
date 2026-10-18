@@ -94,18 +94,18 @@ class ActionsBudgetTests(unittest.TestCase):
     def test_reserves_all_job_timeouts_without_double_counting_current_gate(self):
         report = self.check(PublicHistory())
         self.assertEqual(report["usedMinutes"], 0)
-        self.assertEqual(report["reservedMinutes"], 22)
+        self.assertEqual(report["reservedMinutes"], 31)
         self.assertEqual(report["capMinutes"], 100)
         self.assertTrue(report["allowed"])
         self.assertTrue(report["complete"])
 
     def test_exact_boundary_allowed_but_exhausted_allowance_denied(self):
         history = PublicHistory()
-        history.add(run(1), [[job(1, 1, seconds=78 * 60)]])
+        history.add(run(1), [[job(1, 1, seconds=69 * 60)]])
         self.assertTrue(self.check(history)["allowed"])
-        history.jobs[(1, 1)][0]["completed_at"] = timestamp(NOW - timedelta(hours=2) + timedelta(seconds=78 * 60 + 1))
+        history.jobs[(1, 1)][0]["completed_at"] = timestamp(NOW - timedelta(hours=2) + timedelta(seconds=69 * 60 + 1))
         report = self.assert_closed(history, "full rollout reservation")
-        self.assertEqual(report["usedMinutes"], 79)
+        self.assertEqual(report["usedMinutes"], 70)
         self.assertTrue(report["complete"])
 
     def test_failures_cancelled_jobs_and_every_retry_are_counted(self):
@@ -397,7 +397,7 @@ class ActionsBudgetTests(unittest.TestCase):
         for allowed in (False, True):
             with self.subTest(allowed=allowed), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory) / "output"
-                report = {"allowed": allowed, "usedMinutes": 0 if allowed else None, "reservedMinutes": 22}
+                report = {"allowed": allowed, "usedMinutes": 0 if allowed else None, "reservedMinutes": 31}
                 with patch.dict(os.environ, {"GITHUB_OUTPUT": str(output), "GITHUB_REPOSITORY": "example/tiles",
                                               "GITHUB_RUN_ID": "999", "GITHUB_RUN_ATTEMPT": "1"}), \
                      patch.object(budget, "check_budget", return_value=report) as check, \

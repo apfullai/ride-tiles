@@ -53,7 +53,7 @@ class ResumableIntegrationTests(unittest.TestCase):
                 output=Path(args[args.index('-o')+1])
                 if args[1]=='export':output.write_text(json.dumps(fixtures.features()[0])+'\n')
                 else:output.write_bytes(b'old compact public source')
-            with patch.object(build_region,'download_source',side_effect=lambda url,path:Path(path).write_bytes(fixtures.SOURCE)), \
+            with patch.object(build_region,'download_source',side_effect=lambda url,path,**kwargs:Path(path).write_bytes(fixtures.SOURCE)), \
                  patch.object(build_region,'run',side_effect=old_osmium), \
                  patch.object(build_region.subprocess,'check_output',return_value='2026-09-30T20:21:31Z'):
                 old=build_region.build({**config,'sourceStates':['new-york']},root/'initial',site,snapshot.BASE)
@@ -63,14 +63,16 @@ class ResumableIntegrationTests(unittest.TestCase):
             def execute(request,checkpoint,work,seconds):
                 work.mkdir()
                 result_path=work/'result.json'
-                result=runner.run(request,checkpoint,work/'stage-work',result_path)
+                # This codec/snapshot fixture supplies synthetic downloads;
+                # managed two-process acquisition has separate supervisor tests.
+                result=runner.run({**request,'sourceConcurrency':1},checkpoint,work/'stage-work',result_path)
                 return result,work/'stage-work/region-site'
             now=dt.datetime(2026,10,14,tzinfo=dt.timezone.utc)
             with patch.object(stages,'now_utc',side_effect=lambda now=None:now or fixtures.CLOCK), \
                  patch.object(stages,'runtime_fingerprint',return_value=fixtures.RUNTIME), \
                  patch.object(stages,'plan_sources',return_value=plan), \
-                 patch.object(stages.legacy,'download_source',side_effect=lambda url,path:Path(path).write_bytes(fixtures.SOURCE)), \
-                 patch.object(stages.legacy,'run',side_effect=fixtures.fake_osmium), \
+                 patch.object(stages.legacy,'download_source',side_effect=lambda url,path,**kwargs:Path(path).write_bytes(fixtures.SOURCE)), \
+                 patch.object(stages.legacy,'run',side_effect=lambda *args,**kwargs:fixtures.fake_osmium(*args)), \
                  patch.object(stages,'source_timestamp',return_value='2026-10-01T20:21:31Z'), \
                  patch.object(snapshot,'_validate_frozen',return_value=None):
                 for number in range(10):

@@ -60,6 +60,9 @@ def migration_profile(code_root):
 def eligible(checkpoint_root, checkpoint, code_root):
     """Check exact old identity plus unchanged pre-index execution semantics."""
     checkpoint_root, code_root = Path(checkpoint_root), Path(code_root)
+    from retry_prefix_migration import eligible as retry_prefix_eligible
+    if retry_prefix_eligible(checkpoint_root, checkpoint, code_root):
+        return True
     from exact_pack_migration import eligible as exact_pack_eligible
     if exact_pack_eligible(checkpoint_root, checkpoint, code_root):
         return True
@@ -116,6 +119,9 @@ def eligible(checkpoint_root, checkpoint, code_root):
 
 def migrate(checkpoint_root, checkpoint, code_root, *, target_fingerprint, verified_fingerprint, now):
     """Return an audited descriptor after tests; never mutate preserved files."""
+    from retry_prefix_migration import eligible as retry_prefix_eligible, migrate as retry_prefix_migrate
+    if retry_prefix_eligible(checkpoint_root, checkpoint, code_root):
+        return retry_prefix_migrate(checkpoint_root, checkpoint, code_root, target_fingerprint=target_fingerprint, verified_fingerprint=verified_fingerprint, now=now)
     from exact_pack_migration import eligible as exact_pack_eligible, migrate as exact_pack_migrate
     if exact_pack_eligible(checkpoint_root, checkpoint, code_root):
         return exact_pack_migrate(checkpoint_root, checkpoint, code_root, target_fingerprint=target_fingerprint, verified_fingerprint=verified_fingerprint, now=now)

@@ -24,6 +24,9 @@ from rollout_snapshot import (BASE, MAX_REGIONS, _records, inventory, restore_pu
 ACTIVE = Path('checkpoints/active')
 DESCRIPTOR = 'checkpoint.json'
 PROCESS_SECONDS = 500
+SOURCE_STAGE_SECONDS = 1200
+BUILD_SECONDS = 1380
+EXTERNAL_FINALIZE_SECONDS = 190
 STAGE_SECONDS = 300
 FINALIZE_SECONDS = 90
 MIN_STAGE_SECONDS = 45
@@ -196,6 +199,62 @@ def subprocess_stage(request, checkpoint, work, seconds):
     return result, work/'stage-work'/'region-site'
 
 
+
+def recover_source_prefix(checkpoint, result, candidate, stage, inspector, baseline=None):
+    """Accept only an explicitly recorded, independently verified source prefix."""
+    if stage['kind'] not in ('start', 'source') or not isinstance(result, dict):
+        return None
+    group = result.get('sourceGroup')
+    plan = result.get('sourcePlan')
+    if not isinstance(group, dict) or not isinstance(plan, dict):
+        return None
+    if (group.get('schemaVersion') != 1 or group.get('planId') != plan.get('planId')
+            or group.get('status') not in ('running', 'failed')
+            or checkpoint['sourcePlan'] is not None and plan != checkpoint['sourcePlan']):
+        raise ValueError('Failed source group identity differs')
+    if baseline is not None:
+        # A kill may leave a later atomic commit ahead of the last journal. Copy
+        # only journal-authorized source directories over the unchanged baseline;
+        # symlinks are copied as links so the independent inspector rejects them.
+        added = group.get('completedStates')
+        pending = [name for name in checkpoint['config']['sourceStates'] if name not in checkpoint['progress']['completedStates']]
+        if not isinstance(added, list) or added != pending[:len(added)] or any(not re.fullmatch('[a-z0-9-]{1,64}', name) for name in added):
+            raise ValueError('Failed source group does not name a configured prefix')
+        with tempfile.TemporaryDirectory(dir=candidate.parent, prefix='prefix-recovery-') as directory:
+            recovered_site = Path(directory)/'site'
+            shutil.copytree(baseline, recovered_site, symlinks=True)
+            for name in added:
+                src = candidate/ACTIVE/'sources'/name
+                dst = recovered_site/ACTIVE/'sources'/name
+                if src.is_symlink() or not src.is_dir() or dst.exists():
+                    raise ValueError('Failed source group directory is unsafe')
+                shutil.copytree(src, dst, symlinks=True)
+            recovered = recover_source_prefix(checkpoint, result, recovered_site, stage, inspector)
+            if recovered is not None:
+                shutil.rmtree(candidate)
+                recovered_site.rename(candidate)
+            return recovered
+    progress = inspector(checkpoint['config'], plan, candidate/ACTIVE)
+    if result.get('progress') != progress:
+        raise ValueError('Failed source group progress differs from verified files')
+    validate_transition(checkpoint['config'], checkpoint['progress'], progress, stage)
+    added = progress['completedStates'][len(checkpoint['progress']['completedStates']):]
+    remaining = [name for name in checkpoint['config']['sourceStates'] if name not in progress['completedStates']]
+    if (group.get('completedStates') != added or group.get('remainingStates') != remaining
+            or group.get('plannedPause') != bool(remaining)):
+        raise ValueError('Failed source group prefix receipt differs')
+    files = checkpoint_files(candidate/ACTIVE)
+    if any(files.get(name) != record for name, record in checkpoint['files'].items()):
+        raise ValueError('Failed source group changed previously committed bytes')
+    if not added:
+        return None
+    recovered = copy.deepcopy(checkpoint)
+    recovered.update(sourcePlan=plan, progress=progress,
+                     nextStage=next_stage(checkpoint['config'], progress, plan),
+                     stageCount=checkpoint['stageCount']+1)
+    return recovered
+
+
 def verify_code(root, site, timeout):
     from verified_code import verify_code as verify
     from actions_budget import fetch_public_json
@@ -281,7 +340,7 @@ def blocked_publication(site, error, now, deadline, verifier, monotonic):
 
 def advance(site, configs, *, allow_new=False, start_region=None, acquisition_only=False, now=None, deadline=None,
             execute=subprocess_stage, inspector=inspect_stage, verifier=verify_code,
-            fingerprinter=current_code_fingerprint, monotonic=time.monotonic):
+            fingerprinter=current_code_fingerprint, monotonic=time.monotonic, attempt_observer=None, attempt_admission=None, attempt_origin=None):
     now = now or dt.datetime.now(dt.timezone.utc)
     deadline = deadline if deadline is not None else monotonic()+PROCESS_SECONDS
     manifest = validate_site(site)
@@ -311,6 +370,12 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
         if not migration_pending:
             return blocked_publication(site, ValueError('Active checkpoint code changed; explicit restart required'),
                                        now, deadline, verifier, monotonic)
+    effective_checkpoint = copy.deepcopy(checkpoint)
+    if checkpoint is not None and attempt_admission is not None:
+        if attempt_admission.get('complete') is not True:
+            return {'changed': False, 'reason': 'Source attempt history unavailable', 'active': True}
+        for key in ('failureCount', 'retryAfter', 'needsAttention'):
+            effective_checkpoint[key] = attempt_admission[key]
     if start_region and (checkpoint or not allow_new):
         raise ValueError('Explicit start requires new-work permission and no active generation')
     if checkpoint is None:
@@ -319,10 +384,10 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
         selected = select_region(manifest, state, configs, now, start_region)
         if selected is None:
             return {'changed': False, 'reason': 'No eligible due refresh or new city', 'active': False}
-    elif checkpoint.get('needsAttention'):
-        return {'changed': False, **status_for(checkpoint, now)}
-    elif checkpoint.get('retryAfter') and utc(checkpoint['retryAfter']) > now:
-        return {'changed': False, 'reason': 'Active stage is waiting for its retry time', **status_for(checkpoint, now)}
+    elif effective_checkpoint.get('needsAttention'):
+        return {'changed': False, **status_for(effective_checkpoint, now)}
+    elif effective_checkpoint.get('retryAfter') and utc(effective_checkpoint['retryAfter']) > now:
+        return {'changed': False, 'reason': 'Active stage is waiting for its retry time', **status_for(effective_checkpoint, now)}
     available = deadline-monotonic()-FINALIZE_SECONDS
     if available < MIN_STAGE_SECONDS:
         return {'changed': False, 'reason': 'Insufficient time to verify and checkpoint safely', 'active': bool(checkpoint)}
@@ -343,6 +408,8 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
             'purpose': purpose, 'sourcePlan': None, 'progress': empty_progress(config), 'nextStage': {'kind': 'start'},
             'startedAt': now.isoformat(), 'updatedAt': now.isoformat(), 'retryAfter': None, 'lastError': None, 'stageCount': 0, 'failureCount': 0, 'needsAttention': False, 'files': {}}
     checkpoint = copy.deepcopy(checkpoint)
+    if attempt_admission is not None:
+        checkpoint.update({key: attempt_admission[key] for key in ('failureCount', 'retryAfter', 'needsAttention')})
     if migration_pending:
         # Keep a small durable audit record after this generation is promoted.
         audits = state.setdefault('checkpointMigrations', [])
@@ -351,6 +418,9 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
         audits.append({'generationId': checkpoint['generationId'], **checkpoint['migration']})
     stage = checkpoint['nextStage']
     result = None
+    attempt_error = None
+    source_attempt_started = False
+    source_progress_before = copy.deepcopy(checkpoint['progress'])
     last_completed = None
     with tempfile.TemporaryDirectory(dir=site.parent, prefix='resume-') as directory:
         temp = Path(directory)
@@ -360,12 +430,17 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
         write_json(candidate/'verification.json', receipt)
         available = deadline-monotonic()-FINALIZE_SECONDS
         if available >= MIN_STAGE_SECONDS:
-            print(json.dumps({'phase': 'checkpoint-stage', 'city': checkpoint['config']['id'], 'stage': stage, 'seconds': min(STAGE_SECONDS, available)}), flush=True)
-            request = {'config': checkpoint['config'], 'sourcePlan': checkpoint['sourcePlan'], 'stage': stage, 'batchSize': 128, 'baseUrl': BASE, 'stageSeconds': min(STAGE_SECONDS, available),
+            stage_seconds = min(SOURCE_STAGE_SECONDS if stage['kind'] in ('start', 'source') else STAGE_SECONDS, available)
+            print(json.dumps({'phase': 'checkpoint-stage', 'city': checkpoint['config']['id'], 'stage': stage, 'seconds': stage_seconds}), flush=True)
+            request = {'config': checkpoint['config'], 'sourcePlan': checkpoint['sourcePlan'], 'stage': stage, 'batchSize': 128, 'baseUrl': BASE, 'stageSeconds': stage_seconds,
                        'minimumSourceTimestamp': next((x.get('sourceTimestamp') for x in manifest['regions'] if x['id']==checkpoint['config']['id']), None)}
             previous_checkpoint = copy.deepcopy(checkpoint)
             try:
-                result, generated = execute(request, candidate/ACTIVE, temp/'work', min(STAGE_SECONDS, available))
+                if stage['kind'] == 'source':
+                    source_attempt_started = True
+                    if attempt_observer:
+                        attempt_observer('started', checkpoint, None)
+                result, generated = execute(request, candidate/ACTIVE, temp/'work', stage_seconds)
                 plan = result.get('sourcePlan', checkpoint['sourcePlan'])
                 if not isinstance(plan, dict):
                     raise ValueError('Stage completion lacks pinned source plan')
@@ -427,11 +502,22 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
                     checkpoint = None
             except Exception as error:
                 checkpoint = previous_checkpoint
-                # Discard every uncommitted stage byte, keeping the last published stage.
-                shutil.rmtree(candidate)
-                shutil.copytree(site, candidate)
-                (candidate/ACTIVE).mkdir(parents=True, exist_ok=True)
-                write_json(candidate/'verification.json', receipt)
+                attempt_error = error
+                recovered = None
+                if isinstance(error, StageFailure):
+                    try:
+                        recovered = recover_source_prefix(checkpoint, error.partial_result, candidate, stage, inspector, baseline=site)
+                    except (ValueError, RuntimeError, OSError, KeyError, TypeError) as invalid_prefix:
+                        # A malformed receipt never authorizes retaining candidate bytes.
+                        attempt_error = invalid_prefix
+                if recovered is not None:
+                    checkpoint = recovered
+                    write_json(candidate/'verification.json', receipt)
+                else:
+                    shutil.rmtree(candidate)
+                    shutil.copytree(site, candidate)
+                    (candidate/ACTIVE).mkdir(parents=True, exist_ok=True)
+                    write_json(candidate/'verification.json', receipt)
                 # Retain only completed pin discovery from a failed first source.
                 partial_plan = getattr(error, 'partial_result', {}).get('sourcePlan')
                 if checkpoint['sourcePlan'] is None and isinstance(partial_plan, dict):
@@ -442,13 +528,33 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
                                       nextStage=next_stage(checkpoint['config'], progress, partial_plan))
                 failures = checkpoint.get('failureCount', 0)+1
                 detail = getattr(error, 'partial_result', {}).get('error', {})
-                permanent = not isinstance(error, StageFailure) or detail.get('permanent') is True
+                permanent = not isinstance(attempt_error, StageFailure) or detail.get('permanent') is True
                 attention = permanent or failures >= 3
                 checkpoint.update(updatedAt=now.isoformat(),
                     retryAfter=None if attention else (now+dt.timedelta(hours=20)).isoformat(),
                     failureCount=failures, needsAttention=attention,
                     lastError={'at': now.isoformat(), 'message': detail.get('message', str(error))[:500]})
                 print(json.dumps({'phase': 'checkpoint-retained', 'reason': str(error)[:500]}), flush=True)
+        if stage['kind'] == 'source' and checkpoint is not None:
+            progressed = checkpoint['progress'] != source_progress_before
+            if attempt_observer and source_attempt_started:
+                attempt_observer('progress' if progressed else ('failed' if attempt_error else 'paused'), checkpoint, attempt_error)
+            if progressed and attempt_observer is not None:
+                checkpoint['attemptHistoryOrigin'] = {'runId': attempt_observer.run_id, 'attempt': attempt_observer.attempt, 'commit': attempt_observer.commit}
+            if not progressed:
+                # Failure/migration/status-only metadata is recorded in existing Actions
+                # logs, never by uploading another copy of an unchanged Pages site.
+                status = status_for(checkpoint, now, mode=mode)
+                return {'changed': False, 'stageAttempted': stage, 'sourceProgress': False,
+                        'failureStatePublished': False, **status}
+        if stage['kind'] in ('start', 'source') and checkpoint is not None and checkpoint.get('sourcePlan') is not None and attempt_origin is not None:
+            if (set(attempt_origin) != {'runId', 'attempt', 'commit'}
+                    or type(attempt_origin['runId']) is not int or attempt_origin['runId'] <= 0
+                    or type(attempt_origin['attempt']) is not int or attempt_origin['attempt'] != 1
+                    or not isinstance(attempt_origin['commit'], str)
+                    or not re.fullmatch(r'[0-9a-f]{40}', attempt_origin['commit'])):
+                raise ValueError('Invalid publication attempt origin')
+            checkpoint['attemptHistoryOrigin'] = copy.deepcopy(attempt_origin)
         if migration_pending:
             write_json(candidate/'rollout-state.json', state)
         if checkpoint is not None:
@@ -471,6 +577,28 @@ def advance(site, configs, *, allow_new=False, start_region=None, acquisition_on
     return {'changed': True, 'stageAttempted': stage, 'siteBytes': report['siteBytes'], **status}
 
 
+def process_deadline(*, monotonic=time.monotonic, environ=None):
+    """Share the build clock; source time never consumes the upload reserve."""
+    environ = os.environ if environ is None else environ
+    now = monotonic()
+    start = environ.get('RIDE_BUILD_STARTED')
+    end = environ.get('RIDE_BUILD_DEADLINE')
+    if start is None and end is None:
+        if environ.get('GITHUB_ACTIONS') == 'true':
+            raise ValueError('CI build deadline is required')
+        return now + PROCESS_SECONDS
+    try:
+        start, end = float(start), float(end)
+    except (TypeError, ValueError) as error:
+        raise ValueError('Invalid build deadline') from error
+    if not (0 < start <= now <= end and 0 < end-start <= BUILD_SECONDS):
+        raise ValueError('Expired or invalid build deadline')
+    deadline = end-EXTERNAL_FINALIZE_SECONDS
+    if deadline <= now:
+        raise ValueError('No time remains before publication reserve')
+    return deadline
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--config', default='config/rollout-regions.json')
@@ -485,17 +613,67 @@ def main():
     signal.signal(signal.SIGTERM, interrupt_rollout)
     if os.environ.get('GITHUB_RUN_ATTEMPT', '1') != '1':
         raise RuntimeError('Use a fresh workflow run to recheck budgets')
-    deadline = time.monotonic()+PROCESS_SECONDS
+    deadline = process_deadline()
     site = Path(a.output).resolve()
     configs = load_configs(a.config)
     restored = {}
     restore_published(site, receipt=restored)
+    from attempt_receipts import (REPOSITORY, AttemptObserver, audit_history,
+                                  baseline_from_checkpoint, emit_no_attempt)
     from artifact_budget import check_artifact_budget
-    storage = check_artifact_budget(os.environ.get('GITHUB_REPOSITORY', 'apfullai/ride-tiles'), site)
-    if not storage['allowed']:
-        report = {'changed': False, 'reason': 'Baseline artifact storage cannot safely admit another checkpoint', 'storage': storage}
-    else:
-        report = advance(site, configs, allow_new=a.allow_new, start_region=a.start_region, acquisition_only=a.acquisition_only, deadline=deadline)
+    run_id = int(os.environ['GITHUB_RUN_ID'])
+    attempt = int(os.environ.get('GITHUB_RUN_ATTEMPT', '1'))
+    commit = os.environ['GITHUB_SHA']
+    if (os.environ.get('GITHUB_REPOSITORY') != REPOSITORY or run_id < 1
+            or not re.fullmatch(r'[0-9a-f]{40}', commit)):
+        raise RuntimeError('Source publication requires an identified repository workflow run')
+    context = {'run_id': run_id, 'attempt': attempt, 'commit': commit}
+    origin = {'runId': run_id, 'attempt': attempt, 'commit': commit}
+    baseline = admission = observer = report = None
+    descriptor = site/ACTIVE/DESCRIPTOR
+    if descriptor.exists():
+        try:
+            if descriptor.is_symlink() or not descriptor.is_file():
+                raise ValueError('Active checkpoint is not a regular descriptor')
+            with descriptor.open('rb') as stream:
+                raw = stream.read(65537)
+            if len(raw) > 65536:
+                raise ValueError('Active checkpoint descriptor exceeds its limit')
+            checkpoint = json.loads(raw)
+            # Restore already verified these exact bytes against the live
+            # snapshot inventory. advance independently validates stage files
+            # and any exact code migration before invoking the source worker.
+            if (checkpoint.get('sourcePlan') is not None
+                    and checkpoint.get('nextStage', {}).get('kind') == 'source'):
+                baseline = baseline_from_checkpoint(raw, restored['publicationRevision'],
+                                                    current_code_fingerprint(ROOT))
+                admission = audit_history(baseline, **context)
+                if admission.get('complete') is not True or admission.get('allowed') is not True:
+                    emit_no_attempt(baseline, admission, **context)
+                    report = {'changed': False, 'reason': admission['reason'],
+                              'attemptHistory': admission}
+        except (ValueError, TypeError, KeyError, OSError) as error:
+            # Missing identity cannot authorize either source work or a new
+            # publication. Do not fabricate a trusted no-attempt receipt.
+            report = {'changed': False, 'reason': 'Source attempt baseline unavailable: '
+                      + type(error).__name__ + ': ' + str(error)[:240]}
+    if report is None:
+        storage = check_artifact_budget(REPOSITORY, site)
+        if not storage['allowed']:
+            if baseline is not None:
+                emit_no_attempt(baseline, {**admission, 'allowed': False}, **context)
+            report = {'changed': False, 'reason': 'Baseline artifact storage cannot safely admit another checkpoint', 'storage': storage}
+        else:
+            if baseline is not None:
+                observer = AttemptObserver(baseline, admission, **context)
+            report = advance(site, configs, allow_new=a.allow_new, start_region=a.start_region,
+                             acquisition_only=a.acquisition_only, deadline=deadline,
+                             attempt_admission=admission, attempt_observer=observer,
+                             attempt_origin=origin)
+            if observer is not None:
+                observer.finish_if_unstarted()
+        if admission is not None:
+            report['attemptHistory'] = admission
     if report['changed']:
         assert_publication_unchanged(restored['publicationRevision'])
     report['restoredPublicationRevision'] = restored['publicationRevision']

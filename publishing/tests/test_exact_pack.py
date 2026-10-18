@@ -64,6 +64,10 @@ class ExactMigration(unittest.TestCase):
   self.checkpoint={'codeFingerprint':migration.FROM_CODE,'progress':{'completedStates':['illinois','wisconsin'],'indexReady':False,'batchIds':[],'batchCount':0,'completedBatches':[]},'nextStage':{'kind':'source','state':'indiana'},'sourcePlan':{'planId':'exact-plan'},'generationId':'kept','files':_records(self.cp,include_metadata=True),'migration':{'id':'previous'}}
   (self.cp/'checkpoint.json').write_text(json.dumps(self.checkpoint));self.raw=(self.cp/'checkpoint.json').read_bytes()
   mock=patch.object(migration,'FROM_DESCRIPTOR',hashlib.sha256(self.raw).hexdigest());mock.start();self.addCleanup(mock.stop)
+  # Historical packaging migration uses its exact source inventory. The current
+  # retry/source code must not be authorized by that older migration profile.
+  self.source_records=json.loads((ROOT/'publishing/retry_prefix_source_pins.json').read_bytes())
+  sources=patch('verified_code.source_records',return_value=self.source_records);sources.start();self.addCleanup(sources.stop)
  def test_verified_migration_preserves_all_fields_and_disk(self):
   self.assertTrue(migration.eligible(self.cp,self.checkpoint,ROOT));fp=current_fingerprint(ROOT)
   result=migration.migrate(self.cp,self.checkpoint,ROOT,target_fingerprint=fp,verified_fingerprint=fp,now=dt.datetime.now(dt.timezone.utc))
@@ -80,4 +84,10 @@ class ExactMigration(unittest.TestCase):
   from verified_code import source_records
   records=source_records(ROOT);records['tools/tile_generator.py']='0'*40
   with patch('verified_code.source_records',return_value=records):self.assertFalse(migration.eligible(self.cp,self.checkpoint,ROOT))
+ def test_retry_source_changes_are_not_packaging_only(self):
+  from verified_code import blob_sha
+  for name in ('tools/build_region.py','tools/resumable_region.py','publishing/resumable_rollout.py','publishing/resumable_stage_runner.py'):
+   with self.subTest(name=name):
+    records={**self.source_records,name:blob_sha((ROOT/name).read_bytes())}
+    with patch('verified_code.source_records',return_value=records):self.assertFalse(migration.eligible(self.cp,self.checkpoint,ROOT))
 if __name__=='__main__':unittest.main()

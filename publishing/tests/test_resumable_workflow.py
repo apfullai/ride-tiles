@@ -3,7 +3,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[2]
 class WorkflowTests(unittest.TestCase):
  def test_bounded_daily_continuation_and_permissions(self):
   s=(ROOT/'.github/workflows/rollout.yml').read_text()
-  for value in ('timeout-minutes: 15','timeout-minutes: 2','timeout-minutes: 5','retention-days: 1','--continue-only','--acquisition-only','assert_publication_unchanged','persist-credentials: false'):self.assertIn(value,s)
+  for value in ('timeout-minutes: 24','timeout-minutes: 2','timeout-minutes: 5','retention-days: 1','--continue-only','--acquisition-only','assert_publication_unchanged','persist-credentials: false'):self.assertIn(value,s)
   for cron in ('23 2 * * 1','23 2 * * 0,2-6','23 18 * * *','23 10 17-19 10 *'):
    self.assertIn("cron: '"+cron+"'",s)
   self.assertIn('seed_migration:',s)
@@ -17,5 +17,9 @@ class WorkflowTests(unittest.TestCase):
   self.assertLess(s.index('publishing/continuation_gate.py'),s.index('publishing/actions_budget.py'))
   self.assertIn("if: steps.ready.outputs.eligible == 'true'",s)
   self.assertNotIn('unittest discover',s)
-  self.assertIn('540s python publishing/resumable_rollout.py',s)
+  self.assertIn('process_deadline()-time.monotonic()',s)
+  self.assertIn('start+1380',s)
+  self.assertIn('55s python publishing/exact_artifact.py',s)
+  self.assertIn('45s python publishing/verify_uploaded_artifact.py',s)
+  self.assertLess(s.index('Establish bounded build deadline'),s.index('Install official tools'))
 if __name__=='__main__':unittest.main()

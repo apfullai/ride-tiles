@@ -86,6 +86,15 @@ class ResumableRolloutTests(unittest.TestCase):
             execute=kwargs.pop('execute',self.execute),inspector=self.inspector,
             verifier=kwargs.pop('verifier',self.verifier),fingerprinter=kwargs.pop('fingerprinter',lambda root:CODE),**kwargs)
 
+    def attempt_admission(self, status, now=NOW):
+        # The prior source failure stays in Actions history, not the published
+        # checkpoint. Model the history reader's independently supplied overlay.
+        retry=status['retryAfter']
+        return {'complete':True,
+                'allowed':not status['needsAttention'] and (retry is None or r.utc(retry)<=now),
+                'failureCount':status['failureCount'],'retryAfter':retry,
+                'needsAttention':status['needsAttention']}
+
     def test_temporary_acquisition_checks_restored_checkpoint_not_advisory(self):
         from continuation_gate import ACQUISITION_GENERATION
         now=dt.datetime(2026,10,18,tzinfo=dt.timezone.utc)
@@ -153,16 +162,21 @@ class ResumableRolloutTests(unittest.TestCase):
     def test_failed_stage_discards_partial_bytes_and_retains_prior_stage(self):
         self.advance(allow_new=True)
         original=(self.site/'manifest.json').read_bytes()
+        before=r.inventory(self.site)
         def fail(req,cp,work,seconds):
             (cp/'partial-uncommitted').write_bytes(b'incomplete')
             raise r.StageFailure('bounded source timeout')
         result=self.advance(execute=fail)
+        self.assertFalse(result['changed']);self.assertFalse(result['failureStatePublished'])
         self.assertFalse(result['needsAttention'])
+        self.assertEqual(result['failureCount'],1)
         self.assertEqual(result['completedCounts']['sources'],1)
         self.assertFalse((self.site/r.ACTIVE/'partial-uncommitted').exists())
         self.assertEqual((self.site/'manifest.json').read_bytes(),original)
-        self.assertFalse(self.advance()['changed'])
-        resumed=self.advance(now=NOW+dt.timedelta(days=1,seconds=1))
+        self.assertEqual(before,r.inventory(self.site))
+        self.assertFalse(self.advance(attempt_admission=self.attempt_admission(result))['changed'])
+        resume_at=NOW+dt.timedelta(days=1,seconds=1)
+        resumed=self.advance(now=resume_at,attempt_admission=self.attempt_admission(result,resume_at))
         self.assertEqual(resumed['completedCounts']['sources'],2)
 
     def test_failed_first_source_can_preserve_immutable_plan(self):
@@ -229,11 +243,13 @@ class ResumableRolloutTests(unittest.TestCase):
 
     def test_source_group_cooperative_pause_is_not_a_failure(self):
         self.advance(allow_new=True)
+        before=r.inventory(self.site)
         def pause(req,cp,work,seconds):
             progress=self.inspector(req['config'],req['sourcePlan'],cp)
             return {'schemaVersion':1,'sourcePlan':req['sourcePlan'],'progress':progress,'plannedPause':True,
                     'sourceGroup':{'completedStates':[],'remainingStates':['state-b'],'plannedPause':True}},work/'unused'
         result=self.advance(execute=pause)
+        self.assertFalse(result['changed']);self.assertEqual(before,r.inventory(self.site))
         self.assertFalse(result['needsAttention']);self.assertIsNone(result['retryAfter'])
         self.assertEqual(result['completedCounts']['sources'],1)
 
@@ -248,20 +264,30 @@ class ResumableRolloutTests(unittest.TestCase):
             'parts':[{'path':'crop.part-0000','bytes':len(raw),'sha256':digest}]}})
         descriptor=json.loads((cp/r.DESCRIPTOR).read_text());r.save_checkpoint(self.site,descriptor)
         before=r.checkpoint_files(cp);manifest_before=(self.site/'manifest.json').read_bytes()
+        site_before=r.inventory(self.site)
         pin=hashlib.sha256((cp/r.DESCRIPTOR).read_bytes()).hexdigest();clock=[0]
         def verify(*a,**k):clock[0]=160;return {'fingerprint':'a'*64},'full-tests'
         with patch.object(checkpoint_migrations,'FROM_DESCRIPTOR',pin), \
-             patch.object(checkpoint_migrations,'FROM_CODE',CODE):
-            result=self.advance(fingerprinter=lambda root:'a'*64,verifier=verify,deadline=200,monotonic=lambda:clock[0])
-        self.assertTrue(result['changed']);self.assertEqual(before,r.checkpoint_files(cp))
+             patch.object(checkpoint_migrations,'FROM_CODE',CODE), \
+             patch.object(checkpoint_migrations,'migration_profile',return_value=checkpoint_migrations.MIGRATION_ID):
+            deferred=self.advance(fingerprinter=lambda root:'a'*64,verifier=verify,deadline=200,monotonic=lambda:clock[0])
+            self.assertFalse(deferred['changed']);self.assertFalse(deferred['sourceProgress'])
+            self.assertEqual(site_before,r.inventory(self.site))
+            self.assertEqual(json.loads((cp/r.DESCRIPTOR).read_text()),descriptor)
+            result=self.advance(fingerprinter=lambda root:'a'*64,
+                                verifier=lambda *a,**k:({'fingerprint':'a'*64},'full-tests'))
+        self.assertTrue(result['changed']);self.assertEqual(result['completedCounts']['sources'],2)
+        self.assertTrue(all(r.checkpoint_files(cp)[path]==record for path,record in before.items()
+                            if path.startswith('sources/')))
         current=json.loads((cp/r.DESCRIPTOR).read_text())
-        for field in ('generationId','sourcePlan','config','progress','files'):
+        for field in ('generationId','sourcePlan','config'):
             self.assertEqual(current[field],descriptor[field])
+        self.assertEqual(current['progress']['completedStates'],['illinois','wisconsin'])
         self.assertEqual(current['codeFingerprint'],'a'*64)
         self.assertEqual((self.site/'manifest.json').read_bytes(),manifest_before)
         audit=json.loads((self.site/'rollout-state.json').read_text())['checkpointMigrations']
         self.assertEqual(len(audit),1);self.assertEqual(audit[0]['generationId'],descriptor['generationId'])
-        for number in range(5):
+        for number in range(4):
             result=self.advance(fingerprinter=lambda root:'a'*64,verifier=lambda *a,**k:({'fingerprint':'a'*64},'verified'))
         self.assertFalse(result['active'])
         self.assertEqual(json.loads((self.site/'rollout-state.json').read_text())['checkpointMigrations'],audit)
@@ -310,21 +336,35 @@ class ResumableRolloutTests(unittest.TestCase):
 
     def test_transient_retry_is_due_exactly_after_twenty_hours(self):
         self.advance(allow_new=True)
+        before=r.inventory(self.site)
         def fail(*args):raise r.StageFailure('temporary network timeout')
         failure=self.advance(execute=fail)
+        self.assertFalse(failure['changed']);self.assertEqual(before,r.inventory(self.site))
         self.assertEqual(failure['retryAfter'],(NOW+dt.timedelta(hours=20)).isoformat())
-        self.assertFalse(self.advance(now=NOW+dt.timedelta(hours=20)-dt.timedelta(seconds=1))['changed'])
-        resumed=self.advance(now=NOW+dt.timedelta(hours=20))
+        early=NOW+dt.timedelta(hours=20)-dt.timedelta(seconds=1)
+        self.assertFalse(self.advance(now=early,attempt_admission=self.attempt_admission(failure,early))['changed'])
+        self.assertEqual(before,r.inventory(self.site))
+        due=NOW+dt.timedelta(hours=20)
+        resumed=self.advance(now=due,attempt_admission=self.attempt_admission(failure,due))
         self.assertTrue(resumed['changed']);self.assertEqual(resumed['completedCounts']['sources'],2)
+        self.assertEqual(resumed['failureCount'],0)
 
     def test_three_transient_failures_stop_automatic_retry(self):
         self.advance(allow_new=True)
+        before=r.inventory(self.site)
         def fail(*args):raise r.StageFailure('temporary download failure')
+        result=None
         for count in range(3):
-            result=self.advance(execute=fail,now=NOW+dt.timedelta(days=count,seconds=count))
+            now=NOW+dt.timedelta(days=count,seconds=count)
+            admission=self.attempt_admission(result,now) if result else None
+            result=self.advance(execute=fail,now=now,attempt_admission=admission)
+            self.assertFalse(result['changed']);self.assertEqual(before,r.inventory(self.site))
+            self.assertEqual(result['failureCount'],count+1)
             self.assertEqual(result['needsAttention'],count==2)
         self.assertIsNone(result['retryAfter'])
-        self.assertFalse(self.advance(now=NOW+dt.timedelta(days=4))['changed'])
+        later=NOW+dt.timedelta(days=4)
+        self.assertFalse(self.advance(now=later,attempt_admission=self.attempt_admission(result,later))['changed'])
+        self.assertEqual(before,r.inventory(self.site))
 
     def test_older_pinned_source_blocks_resume_without_changing_checkpoint(self):
         self.advance(allow_new=True)

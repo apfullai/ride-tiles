@@ -5,9 +5,11 @@ intermediate exports, and incomplete batches live in the disposable work tree.
 The caller owns runtime/download admission and publishing the checkpoint.
 """
 import datetime as dt
+from contextlib import ExitStack
 import gzip
 import hashlib
 import json
+import math
 import os
 import platform
 import sys
@@ -33,6 +35,10 @@ MAX_CHECKPOINT_BYTES = 250_000_000
 MAX_PLAN_AGE_DAYS = 90
 DAILY_RETENTION_DAYS = 7
 DEFAULT_BATCH_SIZE = 128
+# The publisher derives the actual allowance from its shared build deadline.
+# This ceiling is only the child maximum, with 15s left to write its result.
+MAX_SOURCE_GROUP_SECONDS = 1185
+SOURCE_FINISH_SECONDS = 30
 BASE = 'https://download.geofabrik.de/north-america/us/'
 PUBLIC_BASE = 'https://apfullai.github.io/ride-tiles'
 SHA = re.compile(r'[a-f0-9]{64}')
@@ -420,8 +426,18 @@ def commit_stage(staged, destination):
     Path(staged).rename(destination)
 
 
-def source_timestamp(path):
-    value = subprocess.check_output(['osmium', 'fileinfo', '-g', 'header.option.osmosis_replication_timestamp', str(path)], text=True).strip()
+def remaining_seconds(deadline, reserve=0):
+    if deadline is None:
+        return None
+    remaining = deadline - time.monotonic() - reserve
+    if remaining <= 0:
+        raise TimeoutError('Source stage reached its time budget')
+    return remaining
+
+
+def source_timestamp(path, *, deadline=None):
+    value = subprocess.check_output(['osmium', 'fileinfo', '-g', 'header.option.osmosis_replication_timestamp', str(path)],
+                                    text=True, timeout=remaining_seconds(deadline)).strip()
     parse_time(value)
     return value
 
@@ -443,7 +459,50 @@ def check_source_receipt(config, plan, state, receipt):
     return timestamp
 
 
-def build_source_stage(config, plan, state, work, checkpoint):
+def validate_source_crop(root, receipt, *, deadline=None):
+    """Validate the exact raw crop described by a non-compacted source receipt.
+
+    Inventory hashing alone does not prove that the crop descriptor names those
+    files, in the right order, with the declared reconstructed identity.
+    """
+    crop = receipt.get('crop')
+    if (not isinstance(crop, dict) or crop.get('encoding') != 'raw'
+            or type(crop.get('bytes')) is not int or not 0 < crop['bytes'] <= MAX_CHECKPOINT_BYTES
+            or not isinstance(crop.get('sha256'), str) or not SHA.fullmatch(crop['sha256'])):
+        raise RuntimeError('Invalid source crop descriptor')
+    parts = crop.get('parts')
+    if not isinstance(parts, list) or not parts or len(parts) > MAX_CHECKPOINT_BYTES // CHUNK_BYTES + 1:
+        raise RuntimeError('Invalid source crop chunks')
+    expected = {}
+    total = 0
+    checksum = hashlib.sha256()
+    for number, part in enumerate(parts):
+        if (not isinstance(part, dict) or part.get('path') != 'crop.part-' + format(number, '04d')
+                or type(part.get('bytes')) is not int or not 0 < part['bytes'] <= CHUNK_BYTES
+                or not isinstance(part.get('sha256'), str) or not SHA.fullmatch(part['sha256'])):
+            raise RuntimeError('Invalid source crop chunk order or identity')
+        name = part['path']
+        expected[name] = {'bytes': part['bytes'], 'sha256': part['sha256']}
+        path = Path(root) / name
+        if path.is_symlink() or not path.is_file() or path.stat().st_size != part['bytes']:
+            raise RuntimeError('Invalid source crop chunk file')
+        chunk_hash = hashlib.sha256()
+        with path.open('rb') as source:
+            for data in iter(lambda: source.read(1024 * 1024), b''):
+                remaining_seconds(deadline)
+                total += len(data)
+                if total > crop['bytes']:
+                    raise RuntimeError('Source crop exceeds declared size')
+                checksum.update(data)
+                chunk_hash.update(data)
+        if chunk_hash.hexdigest() != part['sha256']:
+            raise RuntimeError('Source crop chunk SHA256 mismatch')
+    if receipt.get('files') != expected or total != crop['bytes'] or checksum.hexdigest() != crop['sha256']:
+        raise RuntimeError('Source crop descriptor differs from committed payload')
+
+
+def build_source_stage(config, plan, state, work, checkpoint, *, deadline=None, source_path=None):
+    remaining_seconds(deadline)
     validate_source_plan(config, plan, require_unexpired=False)
     if state not in config['sourceStates']:
         raise RuntimeError('Unplanned source state')
@@ -457,56 +516,135 @@ def build_source_stage(config, plan, state, work, checkpoint):
     with workspace(work) as temporary:
         temp = Path(temporary)
         source, filtered, crop = (temp / name for name in ('state.osm.pbf', 'filtered.osm.pbf', 'crop.osm.pbf'))
-        legacy.download_source(pin['url'], source)
+        if source_path is None:
+            download_options = {'timeout': min(legacy.MAX_TRANSFER_SECONDS, remaining_seconds(deadline, SOURCE_FINISH_SECONDS))} if deadline is not None else {}
+            legacy.download_source(pin['url'], source, **download_options)
+        else:
+            source = Path(source_path)
+            if source.is_symlink() or not source.is_file():
+                raise RuntimeError('Invalid prefetched source file')
+        remaining_seconds(deadline)
         size = source.stat().st_size
         if not 1_000_000 < size <= legacy.MAX_SOURCE_BYTES:
             raise RuntimeError('Source size outside safety bounds')
         md5 = hashlib.md5(usedforsecurity=False)
+        source_sha = hashlib.sha256()
         with source.open('rb') as src:
             for data in iter(lambda: src.read(1024 * 1024), b''):
+                remaining_seconds(deadline)
                 md5.update(data)
+                source_sha.update(data)
         if md5.hexdigest() != pin['md5']:
             raise RuntimeError('Pinned source checksum mismatch; refusing replacement')
-        timestamp = source_timestamp(source)
-        metadata = {**pin, 'sha256': sha256(source), 'bytes': size,
+        timestamp_options = {'deadline': deadline} if deadline is not None else {}
+        timestamp = source_timestamp(source, **timestamp_options)
+        metadata = {**pin, 'sha256': source_sha.hexdigest(), 'bytes': size,
                     'osmReplicationTimestamp': timestamp, 'downloadedAt': now_utc().isoformat()}
         check_source_receipt(config, plan, state, {'state': state, 'source': metadata})
         for previous in existing['completedStates']:
             receipt = verify_receipt(checkpoint / 'sources' / previous, plan['planId'], 'source')
             if parse_time(receipt['source']['osmReplicationTimestamp']) != parse_time(timestamp):
                 raise RuntimeError('Mixed OSM replication timestamps; refusing source stage')
-        legacy.run('osmium', 'tags-filter', str(source), 'w/highway=cycleway,path,footway,track,pedestrian',
+        def run_source(*args):
+            options = {'timeout': remaining_seconds(deadline)} if deadline is not None else {}
+            legacy.run(*args, **options)
+        run_source('osmium', 'tags-filter', str(source), 'w/highway=cycleway,path,footway,track,pedestrian',
                    'w/cycleway', 'w/cycleway:left', 'w/cycleway:right', 'w/cycleway:both',
                    'w/bicycle=designated,yes,official,permissive', '-o', str(filtered))
-        legacy.run('osmium', 'extract', '--bbox', ','.join(map(str, config['bounds'])), '--strategy', 'complete_ways', str(filtered), '-o', str(crop))
+        run_source('osmium', 'extract', '--bbox', ','.join(map(str, config['bounds'])), '--strategy', 'complete_ways', str(filtered), '-o', str(crop))
+        remaining_seconds(deadline)
         staged = temp / 'commit'
         staged.mkdir()
         descriptor = pack_file(crop, staged, 'crop')
         receipt = make_receipt(staged, plan['planId'], 'source', state=state, source=metadata, crop=descriptor)
+        verify_receipt(staged, plan['planId'], 'source')
+        validate_source_crop(staged, receipt, deadline=deadline)
+        remaining_seconds(deadline)
         commit_stage(staged, dest)
     return receipt
 
 
-def build_source_group(config, plan, checkpoint, work, seconds=240, reserve_seconds=30):
-    """Acquire a configured prefix without repeating already verified crops."""
-    if not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not 0 < seconds <= 285:
+class SourceGroupFailure(Exception):
+    def __init__(self, group, progress, state, error):
+        super().__init__(str(error)[:500])
+        self.group = group
+        self.progress = progress
+        self.detail = {'state': state, 'type': type(error).__name__, 'message': str(error)[:500],
+                       'permanent': isinstance(error, (ValueError, RuntimeError))}
+
+
+def build_source_group(config, plan, checkpoint, work, seconds=240, reserve_seconds=30, on_progress=None, concurrent_downloads=1):
+    """Acquire a validated prefix and journal it before attempting another source.
+
+    The callback is only an IPC claim; the publisher must independently verify
+    the listed checkpoint directories before retaining them after child failure.
+    """
+    if not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not 0 < seconds <= MAX_SOURCE_GROUP_SECONDS:
         raise RuntimeError('Invalid source-group time budget')
-    if not isinstance(reserve_seconds, (int, float)) or isinstance(reserve_seconds, bool) or not 0 <= reserve_seconds < seconds:
+    if not isinstance(reserve_seconds, (int, float)) or isinstance(reserve_seconds, bool) or not math.isfinite(reserve_seconds) or not 0 <= reserve_seconds < seconds:
         raise RuntimeError('Invalid source-group safety reserve')
+    if type(concurrent_downloads) is not int or concurrent_downloads not in (1, 2):
+        raise ValueError('Source acquisition concurrency must be one or two')
     deadline = time.monotonic() + seconds
     status = validate_checkpoint(config, plan, checkpoint)
     missing = [state for state in config['sourceStates'] if state not in status['completedStates']]
     completed = []
+    acquisition = None
+    def group_receipt(state):
+        remaining = [item for item in missing if item not in completed]
+        receipt = {'schemaVersion': SCHEMA, 'planId': plan['planId'], 'completedStates': list(completed),
+                   'remainingStates': remaining, 'plannedPause': bool(remaining), 'status': state}
+        if acquisition is not None:
+            receipt['acquisition'] = acquisition
+        return receipt
+
+    def inspect_prefix(attempted):
+        progress = validate_checkpoint(config, plan, checkpoint)
+        added = [item for item in progress['completedStates'] if item not in status['completedStates']]
+        if (added != missing[:len(added)] or len(added) > attempted
+                or any(item not in progress['completedStates'] for item in status['completedStates'])
+                or any(progress[key] != status[key] for key in ('indexReady', 'batchIds', 'batchCount', 'completedBatches'))):
+            raise RuntimeError('Source group changed work outside its configured prefix')
+        return progress, added
+
     slowest = 30.0
-    for state in missing:
-        if deadline - time.monotonic() <= reserve_seconds + 2 * slowest:
-            break
-        started = time.monotonic()
-        build_source_stage(config, plan, state, work, checkpoint)
-        completed.append(state)
-        slowest = max(slowest, time.monotonic() - started)
-    remaining = [state for state in missing if state not in completed]
-    return {'completedStates': completed, 'remainingStates': remaining, 'plannedPause': bool(remaining)}
+    with ExitStack() as resources:
+        downloads = None
+        selected = missing
+        if concurrent_downloads == 2 and missing:
+            if deadline-time.monotonic() <= reserve_seconds+2*slowest:
+                return group_receipt('paused')
+            # Every pin/runtime/expiry check precedes raw acquisition. The batch
+            # reserves both full allowances before starting either curl.
+            validate_source_plan(config, plan)
+            raw = Path(resources.enter_context(workspace(work)))
+            pins = {item['state']: item for item in plan['sources']}
+            requests = [{'state': state, 'url': pins[state]['url'], 'path': raw/(state+'.osm.pbf')}
+                        for state in missing[:2]]
+            downloads = resources.enter_context(legacy.SourceDownloadBatch(requests,
+                deadline=deadline-reserve_seconds-SOURCE_FINISH_SECONDS))
+            acquisition = downloads.summary
+            selected = [item['state'] for item in downloads.sources]
+        for number, state in enumerate(selected):
+            if downloads is None and deadline-time.monotonic() <= reserve_seconds+2*slowest:
+                break
+            started = time.monotonic()
+            try:
+                source_options = {'source_path': downloads.wait_for(state)} if downloads else {}
+                build_source_stage(config, plan, state, work, checkpoint,
+                                   deadline=deadline-reserve_seconds, **source_options)
+            except Exception as error:
+                progress, completed = inspect_prefix(number+1)
+                failed_state = error.state if isinstance(error, legacy.SourceDownloadFailure) else state
+                cause = error.cause if isinstance(error, legacy.SourceDownloadFailure) else error
+                raise SourceGroupFailure(group_receipt('failed'), progress, failed_state, cause) from error
+            progress, completed = inspect_prefix(number+1)
+            if completed != missing[:number+1]:
+                raise RuntimeError('Source stage did not commit its complete crop')
+            if on_progress is not None:
+                on_progress(group_receipt('running'), progress)
+            slowest = max(slowest, time.monotonic()-started)
+    return group_receipt('paused' if len(completed) < len(missing) else 'complete')
 
 
 def compact_source_crops(config, plan, checkpoint, index):
@@ -707,6 +845,8 @@ def validate_checkpoint(config, plan, checkpoint):
                 if receipt['files']:
                     raise RuntimeError('Compacted source still contains payload files')
                 compacted[state] = receipt
+            else:
+                validate_source_crop(root, receipt)
             result['completedStates'].append(state)
     if len(timestamps) > 1:
         raise RuntimeError('Mixed source replication timestamps in checkpoint')

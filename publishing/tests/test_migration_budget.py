@@ -125,18 +125,18 @@ class MigrationBudgetTests(unittest.TestCase):
         self.assertFalse(early.check_capacity(TARGET, fetch=self.early_fetch, now=NOW)['allowed'])
 
     def test_finalized_minutes_carry_forward_and_keep_full_reservation(self):
-        self.save(finalized(76))
+        self.save(finalized(67))
         history = PublicHistory()
         history.add(run(1), [[job(10, 1, seconds=61)]])
         result = self.runtime_check(history)
         self.assertTrue(result['allowed'], result)
-        self.assertEqual(result['carriedMinutes'], 76)
-        self.assertEqual(result['usedMinutes'], 78)
-        self.assertEqual(result['reservedMinutes'], 22)
-        self.save(finalized(77))
+        self.assertEqual(result['carriedMinutes'], 67)
+        self.assertEqual(result['usedMinutes'], 69)
+        self.assertEqual(result['reservedMinutes'], 31)
+        self.save(finalized(68))
         result = self.runtime_check(history)
         self.assertFalse(result['allowed']); self.assertTrue(result['complete'])
-        self.assertEqual(result['usedMinutes'], 79)
+        self.assertEqual(result['usedMinutes'], 70)
 
     def test_october_carry_ends_next_month_but_ledger_is_still_required(self):
         self.save(finalized(91))

@@ -47,7 +47,7 @@ def features():
     ]
 
 
-def fake_osmium(*args):
+def fake_osmium(*args, **kwargs):
     path = Path(args[args.index('-o') + 1])
     if args[1] == 'export':
         path.write_text('\x1e' + '\n'.join(map(json.dumps, features())) + '\ninvalid json\n')
@@ -65,7 +65,7 @@ class ResumableStagesTest(unittest.TestCase):
         self.patches = [patch.object(r, 'now_utc', side_effect=lambda now=None: now or CLOCK),
                         patch.object(r, 'runtime_fingerprint', return_value=RUNTIME),
                         patch.object(r, 'read_pbf_timestamp', return_value='2026-10-01T20:21:31Z'),
-                        patch.object(r.legacy, 'download_source', side_effect=lambda url, path: Path(path).write_bytes(SOURCE)),
+                        patch.object(r.legacy, 'download_source', side_effect=lambda url, path, **kwargs: Path(path).write_bytes(SOURCE)),
                         patch.object(r.legacy, 'run', side_effect=fake_osmium),
                         patch.object(r, 'source_timestamp', return_value='2026-10-01T20:21:31Z')]
         for item in self.patches:
@@ -374,7 +374,13 @@ class ResumableStagesTest(unittest.TestCase):
         self.assertTrue(r.validate_checkpoint(CONFIG, self.source_plan, self.checkpoint)['indexReady'])
 
     def test_source_groups_pause_resume_and_never_repeat_completed_state(self):
-        with patch.object(r.time, 'monotonic', side_effect=[0, 0, 0, 80, 80]):
+        clock = [0]
+        build_source = r.build_source_stage
+        def timed_source(*args, **kwargs):
+            receipt = build_source(*args, **kwargs)
+            clock[0] += 80
+            return receipt
+        with patch.object(r.time, 'monotonic', side_effect=lambda: clock[0]), patch.object(r, 'build_source_stage', side_effect=timed_source):
             first = r.build_source_group(CONFIG, self.source_plan, self.checkpoint, self.work, seconds=180, reserve_seconds=30)
         self.assertEqual(first['completedStates'], ['new-york'])
         self.assertEqual(first['remainingStates'], ['new-jersey'])
@@ -382,14 +388,16 @@ class ResumableStagesTest(unittest.TestCase):
         first_files = r.file_map(self.checkpoint / 'sources/new-york')
         r.legacy.download_source.reset_mock()
         rest = r.build_source_group(CONFIG, self.source_plan, self.checkpoint, self.work)
-        self.assertEqual(rest, {'completedStates': ['new-jersey'], 'remainingStates': [], 'plannedPause': False})
+        self.assertEqual(rest, {'schemaVersion': 1, 'planId': self.source_plan['planId'],
+                                'completedStates': ['new-jersey'], 'remainingStates': [], 'plannedPause': False, 'status': 'complete'})
         r.legacy.download_source.assert_called_once()
         self.assertEqual(first_files, r.file_map(self.checkpoint / 'sources/new-york'))
         self.assertEqual(r.build_source_group(CONFIG, self.source_plan, self.checkpoint, self.work)['completedStates'], [])
 
     def test_source_group_too_little_time_does_not_download(self):
         result = r.build_source_group(CONFIG, self.source_plan, self.checkpoint, self.work, seconds=30, reserve_seconds=20)
-        self.assertEqual(result, {'completedStates': [], 'remainingStates': CONFIG['sourceStates'], 'plannedPause': True})
+        self.assertEqual(result, {'schemaVersion': 1, 'planId': self.source_plan['planId'],
+                                 'completedStates': [], 'remainingStates': CONFIG['sourceStates'], 'plannedPause': True, 'status': 'paused'})
         r.legacy.download_source.assert_not_called()
 
     def test_index_compacts_only_redundant_crops_and_preserves_provenance(self):

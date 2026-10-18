@@ -36,13 +36,14 @@ class SourcePackageMigrationTests(unittest.TestCase):
         (self.cp/'checkpoint.json').write_text(json.dumps(self.checkpoint))
         self.pin=patch.object(migration,'FROM_DESCRIPTOR',hashlib.sha256((self.cp/'checkpoint.json').read_bytes()).hexdigest())
         self.pin.start();self.addCleanup(self.pin.stop)
+        self.code = self.code_copy()
 
-    def eligible(self):return migration.eligible(self.cp,self.checkpoint,ROOT)
+    def eligible(self):return migration.eligible(self.cp,self.checkpoint,self.code)
 
     def test_exact_source_only_descriptor_migrates_without_touching_any_file(self):
         before={p.relative_to(self.cp).as_posix():p.read_bytes() for p in self.cp.rglob('*') if p.is_file()}
         self.assertTrue(self.eligible())
-        result=migration.migrate(self.cp,self.checkpoint,ROOT,target_fingerprint='a'*64,
+        result=migration.migrate(self.cp,self.checkpoint,self.code,target_fingerprint='a'*64,
             verified_fingerprint='a'*64,now=dt.datetime(2026,10,14,tzinfo=dt.timezone.utc))
         self.assertEqual({k:v for k,v in result.items() if k not in ('codeFingerprint','migration')},
                          {k:v for k,v in self.checkpoint.items() if k!='codeFingerprint'})
@@ -63,7 +64,7 @@ class SourcePackageMigrationTests(unittest.TestCase):
 
     def test_test_receipt_mismatch_cannot_authorize_migration(self):
         with self.assertRaisesRegex(ValueError,'not authorized'):
-            migration.migrate(self.cp,self.checkpoint,ROOT,target_fingerprint='a'*64,
+            migration.migrate(self.cp,self.checkpoint,self.code,target_fingerprint='a'*64,
                               verified_fingerprint='b'*64,now=dt.datetime.now(dt.timezone.utc))
 
     def test_corrupt_crop_or_inconsistent_whole_hash_is_refused(self):
@@ -81,7 +82,7 @@ class SourcePackageMigrationTests(unittest.TestCase):
 
     def test_source_semantics_fingerprint_ignores_only_new_packaging_boundary(self):
         path=self.root/'tools/resumable_region.py';path.parent.mkdir()
-        original=(ROOT/'tools/resumable_region.py').read_text();path.write_text(original)
+        original=(self.code/'tools/resumable_region.py').read_text();path.write_text(original)
         self.assertEqual(migration.source_semantics(self.root),migration.ORIGIN_SOURCE_SEMANTICS)
         path.write_text(original+'\n# comment only\n')
         self.assertEqual(migration.source_semantics(self.root),migration.ORIGIN_SOURCE_SEMANTICS)
@@ -90,16 +91,18 @@ class SourcePackageMigrationTests(unittest.TestCase):
 
 
     def code_copy(self):
-        root = self.root/'code'
+        root = Path(tempfile.mkdtemp(prefix='historical-code-', dir=self.root))
         for name in (*migration.PROTECTED_FILES, 'tools/resumable_region.py'):
             target = root/name
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(ROOT/name, target)
+            original = (ROOT/'publishing/tests/fixtures/source_package_migration'/(Path(name).name+'.txt')
+                        if name in ('tools/resumable_region.py', 'tools/build_region.py') else ROOT/name)
+            shutil.copyfile(original, target)
         return root
 
     def test_origin_migration_has_distinct_audit_and_preserves_all_other_fields(self):
-        self.assertEqual(migration.migration_profile(ROOT), migration.ORIGIN_MIGRATION_ID)
-        result = migration.migrate(self.cp, self.checkpoint, ROOT,
+        self.assertEqual(migration.migration_profile(self.code), migration.ORIGIN_MIGRATION_ID)
+        result = migration.migrate(self.cp, self.checkpoint, self.code,
             target_fingerprint='a'*64, verified_fingerprint='a'*64,
             now=dt.datetime(2026, 10, 15, tzinfo=dt.timezone.utc))
         self.assertEqual(result['migration']['id'], migration.ORIGIN_MIGRATION_ID)
@@ -146,6 +149,10 @@ class SourcePackageMigrationTests(unittest.TestCase):
         source = root/'tools/resumable_region.py'
         source.write_text(source.read_text().replace("'Pinned source checksum mismatch; refusing replacement'", "'altered'"))
         self.assertFalse(migration.eligible(self.cp, self.checkpoint, root))
+
+    def test_retry_code_cannot_use_old_source_package_profile(self):
+        self.assertIsNone(migration.migration_profile(ROOT))
+        self.assertFalse(migration.eligible(self.cp, self.checkpoint, ROOT))
 
 
 if __name__=='__main__':unittest.main()

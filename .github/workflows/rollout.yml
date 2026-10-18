@@ -88,11 +88,19 @@ jobs:
     needs: budget
     if: needs.budget.outputs.allowed == 'true' && github.run_attempt == 1
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 24
     outputs:
       changed: ${{ steps.rollout.outputs.changed == 'true' && steps.storage.outputs.allowed == 'true' }}
       restored_publication_revision: ${{ steps.rollout.outputs.restored_publication_revision }}
     steps:
+      - name: Establish bounded build deadline
+        run: |
+          python - <<'PY'
+          import os, time
+          start = time.monotonic()
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'RIDE_BUILD_STARTED={start}\nRIDE_BUILD_DEADLINE={start+1380}\n')
+          PY
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -108,7 +116,7 @@ jobs:
           timeout --signal=TERM --kill-after=5s 30s python -m pip install --no-cache-dir --disable-pip-version-check -r requirements-dev.txt
       - name: Verify code and advance one durable city checkpoint
         id: rollout
-        timeout-minutes: 10
+        timeout-minutes: 23
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
           ALLOW_NEW: ${{ needs.budget.outputs.allow_new }}
@@ -123,17 +131,19 @@ jobs:
           if [ "$ALLOW_NEW" = true ]; then args=(--allow-new); fi
           if [ -n "$START_REGION" ]; then args+=(--start-region "$START_REGION"); fi
           if [ "$ACQUISITION_ONLY" = true ]; then args+=(--acquisition-only); fi
-          timeout --signal=TERM --kill-after=10s 540s python publishing/resumable_rollout.py "${args[@]}"
+          seconds=$(python -c 'import sys,time; sys.path.insert(0,"publishing"); from resumable_rollout import process_deadline; print(max(1,int(process_deadline()-time.monotonic())))')
+          timeout --signal=TERM --kill-after=10s "${seconds}s" python publishing/resumable_rollout.py "${args[@]}"
       - name: Check active artifact storage before upload
         id: storage
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
         if: steps.rollout.outputs.changed == 'true'
-        timeout-minutes: 3
-        run: python publishing/exact_artifact.py --publisher . --repository "${GITHUB_REPOSITORY}" --site site --archive "$RUNNER_TEMP/ride-pages/artifact.tar" --receipt exact-artifact.json
+        timeout-minutes: 1
+        run: timeout --signal=TERM --kill-after=5s 55s python publishing/exact_artifact.py --publisher . --repository "${GITHUB_REPOSITORY}" --site site --archive "$RUNNER_TEMP/ride-pages/artifact.tar" --receipt exact-artifact.json
       - name: Upload only a changed and fully validated site
         if: steps.rollout.outputs.changed == 'true' && steps.storage.outputs.allowed == 'true'
         uses: actions/upload-artifact@v4
+        timeout-minutes: 1
         id: upload
         with:
           name: github-pages
@@ -146,7 +156,8 @@ jobs:
         env:
           TILE_GITHUB_READ_TOKEN: ${{ github.token }}
           UPLOADED_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
-        run: python publishing/verify_uploaded_artifact.py --publisher . --receipt exact-artifact.json
+        timeout-minutes: 1
+        run: timeout --signal=TERM --kill-after=5s 45s python publishing/verify_uploaded_artifact.py --publisher . --receipt exact-artifact.json
 
   deploy:
     needs: [budget, build]
