@@ -1,8 +1,8 @@
 {
-  "requestId": "seed-preserved-publication-2026-10-16T0142Z",
+  "requestId": "resume-chicagoland-pinned-sources-2026-10-19T1411Z",
   "startRegion": "",
-  "seedMigration": true,
-  "verifiedCommit": "d40a6f7da888e8b27585628db74340d89786f715",
-  "verificationRun": 38836288056,
-  "purpose": "Retry exact preserved publication after verified read-only API fix; normal gates count failed attempt; no city build"
+  "seedMigration": false,
+  "verifiedCommit": "08a9dc5b1e2acf8a62fda49f01af4cb50c06b144",
+  "verificationRun": 39137969758,
+  "purpose": "Continue the existing Chicagoland checkpoint after API-confirmed artifact expiry. Preserve pinned source plan, Oct 20 acquisition deadline, cumulative failure history, 100-minute publisher cap, 31-minute reservation, 250 MB artifact cap, and shared concurrency. No seed migration or new source pins."
 }
