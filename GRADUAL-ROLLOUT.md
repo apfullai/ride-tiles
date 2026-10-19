@@ -34,6 +34,10 @@ Downloads retain 1.5 GB per-file and 3 GB per-run ceilings, 20-second connect an
 
 ## Code verification
 
+Development builds, bulk-data experiments and both unit suites run on the development VM first, using the [existing local commands](README.md#vm-first-development-and-verification). Keep experimental output separate from live recovery data and complete the local edit/test loop before publishing source changes. Do not dispatch maintenance runs or change the rollout-request file as a development test runner.
+
+The existing GitHub verification and scheduled maintenance remain automated after that local validation. This development policy does not remove, bypass or change production admission, source-compatibility, CI-proof, hash, storage or publication guards; the separate Ride application Cloudflare automation is unaffected.
+
 A standalone successful `snapshot-tests.yml` run proves the full generator and publishing suites. Reuse requires the correct repository, main branch, allowed event, successful named suite steps and an identical Git blob inventory of tools, publishing code, tests/fixtures, bootstrap/research inputs, config, requirements and workflows. A receipt is only a lookup hint; a successful skipped/budget-denied publisher is not proof. Metadata-only request commits do not invalidate identical code.
 
 Every continuation still runs nonempty focused resumability tests and validates all restored hashes, stage inventories and runtime compatibility. Missing/expired/unverifiable CI proof runs the full suites under the same absolute deadline. No unchecked source can skip testing merely by claiming a matching fingerprint.

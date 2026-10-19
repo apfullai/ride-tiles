@@ -29,7 +29,30 @@ Only standard `ubuntu-24.04` runners are used. Monthly publishing admission rema
 
 Durable recovery comes from `snapshot.json` plus hash-pinned transport shards published with the site, independently of expiring Actions artifacts. Corrupt or unavailable recovery data, stale live-manifest races, invalid regions, and over-budget candidates never replace current coverage. The initial checked-in snapshot is used only when the live descriptor is absent (HTTP 404) and the complete live manifest matches that known snapshot.
 
-Run `python -m pip install -r requirements-dev.txt`, then `python -m unittest discover -s tests -v` and `python -m unittest discover -s publishing/tests -v`. A real generation additionally needs the official distribution's `osmium-tool`. `python tools/build_region.py` remains a legacy local-generation tool, not a deployment path. Output directories must be fresh.
+## VM-first development and verification
+
+Run development builds, bulk-data experiments and unit checks on the development VM before publishing source changes. Use the existing Python tools and test suites from a complete checkout, including its checked-in bootstrap archives and fixtures:
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s publishing/tests -v
+```
+
+Keep build experiments in fresh, disposable VM output/work directories. For an optional legacy pilot generation, install the official distribution's `osmium-tool` and use:
+
+```sh
+.venv/bin/python tools/build_region.py --region-config config/pilot-regions.json --output site-dev --work build-dev
+```
+
+That command downloads public OSM inputs and can use substantial time and disk. It writes a local candidate only; it does not publish or resume the live checkpoint. Do not use its legacy limits as production admission limits, upload its output as a release, or replace the current published manifest with it.
+
+Use the VM for the edit/build/test loop rather than repeatedly dispatching GitHub Actions or changing `config/rollout-request.json` to test development changes. Run final local checks and review their results before pushing. Existing source-triggered `snapshot-tests.yml` verification and the scheduled, guarded `rollout.yml` maintenance publisher remain in place. Local test success does not replace the exact CI proof required for production test reuse. The Ride application's existing Cloudflare automation is separate and remains unchanged.
+
+The current operating instructions in this README and [GRADUAL-ROLLOUT.md](GRADUAL-ROLLOUT.md) supersede the historical no-cron/manual-publication advice in `publishing/README.md`. Both legacy publisher workflows are retired and cannot deploy.
+
+## Publication credentials
 
 Publication uses the existing repository's short-lived `GITHUB_TOKEN` and Pages OIDC permissions only. Same-repository public API reads use the existing job token to avoid shared-runner anonymous rate limits; it is never persisted or sent to Pages, source hosts, other repositories, or redirects. No paid runner, new secret, private repository, custom domain or Cloudflare changes are introduced. GitHub Pages publication is public; the production Ride app and its Cloudflare regional release are separate.
 
