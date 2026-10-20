@@ -49,6 +49,19 @@ class HttpSmokeTests(unittest.TestCase):
             r.headers["Cache-Control"] = "no-store"
             self.assertEqual(http.fetch("https://expected/file", 1)[0], b"x")
 
+    def test_only_explicit_expected_html_redirect_is_accepted(self):
+        class Response:
+            headers = {"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"}
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def geturl(self): return "https://expected/"
+            def read(self, n): return b"x"
+        with patch.object(http, "urlopen", return_value=Response()):
+            self.assertEqual(http.fetch("https://expected/index.html", 1,
+                                        expected_url="https://expected/")[0], b"x")
+            with self.assertRaisesRegex(ValueError, "redirect"):
+                http.fetch("https://expected/tiles/0/0/0.pbf", 1)
+
 
 if __name__ == "__main__":
     unittest.main()

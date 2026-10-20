@@ -38,7 +38,7 @@ def fetch(url, maximum, *, expected_url=None):
                                     "Cache-Control": "no-cache"})
     with urlopen(request, timeout=45) as response:
         if response.geturl() != (expected_url or url):
-            raise ValueError("Unexpected HTTP redirect")
+            raise ValueError("Unexpected HTTP redirect: " + url + " -> " + response.geturl())
         data = response.read(maximum + 1)
         if len(data) > maximum:
             raise ValueError("Response exceeds expected byte size")
@@ -60,7 +60,14 @@ def verify(output, data_url, mellow_url):
     def probe(name):
         base = mellow_url if name.startswith("mellow/") else data_url
         expected = records[name]
-        data, headers = fetch(base + "/" + name, expected["size"])
+        # Pages canonicalizes HTML URLs only. Do not generalize this exception
+        # to manifests, checkpoints, sources, tiles or recovery shards.
+        served_url = base + "/" + name
+        if name == "index.html":
+            served_url = base + "/"
+        elif name.endswith(".html"):
+            served_url = base + "/" + name[:-5]
+        data, headers = fetch(base + "/" + name, expected["size"], expected_url=served_url)
         if len(data) != expected["size"] or transport.snapshot.digest(data) != expected["sha256"]:
             raise ValueError("Served bytes differ: " + name)
         lower = {k.lower(): v for k, v in headers.items()}
@@ -68,7 +75,7 @@ def verify(output, data_url, mellow_url):
             raise ValueError("Unexpected PBF MIME type")
         return {"path": name, "bytes": len(data), "sha256": expected["sha256"],
                 "contentType": lower.get("content-type"), "cors": "*",
-                "cacheControl": lower.get("cache-control")}
+                "cacheControl": lower.get("cache-control"), "servedUrl": served_url}
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         checked = list(executor.map(probe, samples(records)))
     for base in (data_url, mellow_url):

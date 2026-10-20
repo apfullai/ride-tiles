@@ -125,6 +125,17 @@ occur here, and the scheduled publisher remains unchanged.
    origin to that immutable transport and retains same-origin HTTP checks.
    Recovery shards never traverse the cross-origin mellow redirect.
 
+   Run the bounded loose-file probe separately. It checks representative files
+   from every historical region, checkpoint, root and mellow group, response
+   headers, explicit missing-file 404s and the mellow redirect:
+
+   ```sh
+   timeout -k5s 600s python development/verify_cloudflare_http.py \
+     --output /absolute/package \
+     --data-url https://<hash>.ride-tiles-data.pages.dev \
+     --mellow-url https://<hash>.ride-tiles-mellow.pages.dev
+   ```
+
 5. Bind the verified immutable root URL using `bind` again with `--data-url`.
    This adds `cloudflare-manifest.json` and `cloudflare-publication.json` while
    leaving every canonical byte unchanged. Upload the final `root/` package to
@@ -151,6 +162,9 @@ explicit bindings. Never deploy a package after failed verification.
   added. The existing compressed tile bytes and their hashes remain unchanged.
 - Explicit `404.html` prevents Cloudflare's default SPA fallback from returning
   HTML with 200 for missing tile paths. Verify real missing-path 404s on both.
+- Pages canonicalizes HTML URLs (`/index.html` to `/`, for example). The smoke
+  verifier allows only the expected same-origin HTML form and still verifies
+  exact bytes. Tile, source, manifest and recovery paths retain strict URL checks.
 - The root redirects `/mellow/*` with 302 to the exact immutable sibling.
   Cloudflare applies redirects before custom headers; do **not** claim this
   redirect is a verified browser CORS API. Use the direct pinned mellow URL from
