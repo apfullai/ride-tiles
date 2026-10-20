@@ -176,6 +176,24 @@ explicit bindings. Never deploy a package after failed verification.
 - Full snapshot restoration verifies all canonical data, but live loose-file
   smoke probes are samples. Record both claims accurately.
 
+## Verified publication: October 20, 2026
+
+The alternate publication is live at
+[`cloudflare-manifest.json`](https://ride-tiles-data.pages.dev/cloudflare-manifest.json),
+with transport identity in
+[`cloudflare-publication.json`](https://ride-tiles-data.pages.dev/cloudflare-publication.json).
+The [acceptance receipt](receipts/2026-10-20-cloudflare-direct-publish.json)
+records immutable deployment URLs, source commits, inventories and limitations.
+
+- All 25,388 canonical files (185,252,064 bytes) restored from Cloudflare match
+  the original publication byte-for-byte, including the active checkpoint.
+- 411 local tests passed; 39 representative live loose-file probes passed,
+  including MIME, CORS, cache, 404 and redirect-byte checks.
+- The canonical manifest switch points to already-verified immutable data.
+  GitHub publication and the production app deployment were unchanged.
+- No GitHub Actions were dispatched. No map generation or consumer migration
+  is claimed. Browser CORS through the root-to-mellow redirect remains unverified.
+
 ## Authoritative references
 
 Checked October 20, 2026:

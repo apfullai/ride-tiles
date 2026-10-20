@@ -1,0 +1,132 @@
+{
+  "canonicalHttp": {
+    "canonicalMetadataBytesMatch": true,
+    "files": [
+      {
+        "bytes": 2811,
+        "path": "cloudflare-manifest.json",
+        "sha256": "0b4fada6fa448250f91ca2788ab7a444561a203c7e0ad5f4d79486f6570992d5"
+      },
+      {
+        "bytes": 782,
+        "path": "cloudflare-publication.json",
+        "sha256": "e8d57307e04a1a5e279f063962bb8021874387131fcbbfc2c251538d387980ec"
+      }
+    ],
+    "originalGitHubPublicationUnchanged": true
+  },
+  "canonicalManifestUrl": "https://ride-tiles-data.pages.dev/cloudflare-manifest.json",
+  "canonicalPublicationUrl": "https://ride-tiles-data.pages.dev/cloudflare-publication.json",
+  "deployments": {
+    "data": {
+      "branch": "data-cc876c1e",
+      "id": "c6412c7f-33fa-4335-9e19-6c60f61943f2",
+      "sourceCommit": "a24dae19e6f65831cb48bcd8b28db551cfb9454b",
+      "url": "https://c6412c7f.ride-tiles-data.pages.dev"
+    },
+    "mellow": {
+      "branch": "data-cc876c1e",
+      "id": "c7944bdf-3ec7-41e6-ac3e-6c34d8a2787d",
+      "sourceCommit": "a24dae19e6f65831cb48bcd8b28db551cfb9454b",
+      "url": "https://c7944bdf.ride-tiles-mellow.pages.dev"
+    },
+    "publication": {
+      "environment": "production",
+      "id": "ce5f112c-d8a5-42cc-8f7d-4af70cafafe6",
+      "latest_stage": {
+        "ended_on": "2026-10-20T15:43:40.781516Z",
+        "name": "deploy",
+        "started_on": null,
+        "status": "success"
+      },
+      "metadata": {
+        "branch": "main",
+        "commit_dirty": false,
+        "commit_hash": "6c87bfdc5dbc743b51b7ec2561faec617df2b253",
+        "commit_message": ""
+      },
+      "url": "https://ce5f112c.ride-tiles-data.pages.dev"
+    }
+  },
+  "fullRecovery": {
+    "allCanonicalFilesMatch": true,
+    "bytes": 185252064,
+    "checkpointSha256": "a9fa6f7f671ee753a26c4579c079b9ce70997b9519fa02f9baa1b2f85d2941e9",
+    "files": 25388,
+    "inventorySha256": "cc876c1ea0381813c97bea32af069be37b800e9d12bcc542de23e9f10af1d8ff"
+  },
+  "http": {
+    "allLooseFilesChecked": false,
+    "browserCorsThroughRedirectChecked": false,
+    "canonicalFiles": 25388,
+    "dataDeploymentUrl": "https://c6412c7f.ride-tiles-data.pages.dev",
+    "mellowDeploymentUrl": "https://c7944bdf.ride-tiles-mellow.pages.dev",
+    "mellowRedirectBytesMatch": true,
+    "missingPaths404": true,
+    "sampledLooseFiles": 39,
+    "schemaVersion": 1
+  },
+  "kind": "existing-snapshot-direct-publication-acceptance",
+  "limitations": [
+    "This proves publication transport of the existing snapshot, not refreshed map coverage.",
+    "The 39 live loose-file probes are representative; full canonical data is verified separately by round-trip recovery and inventory comparison.",
+    "Future consumers should use the direct pinned mellow deployment, not assume browser CORS through the root cross-origin redirect.",
+    "The existing scheduled GitHub publisher is unchanged; this manual publication does not automatically track subsequent source updates.",
+    "Continued generation still requires the exact pinned runtime and a compatible, valid checkpoint; no runtime fingerprint was rewritten.",
+    "A concurrent TEST app deployment was observed but was not modified by this task."
+  ],
+  "package": {
+    "canonicalBytes": 185252064,
+    "canonicalFiles": 25388,
+    "canonicalInventorySha256": "cc876c1ea0381813c97bea32af069be37b800e9d12bcc542de23e9f10af1d8ff",
+    "canonicalManifestSha256": "2c5e020ac70978a8500ce8f4d0fe3489aad5558162b20624e3e04bd333510a55",
+    "canonicalSnapshotSha256": "4e60fe4423c0004b8df0918289099dfe8002fda12264746cff32ce5518ea397a",
+    "combinedBytes": 185256430,
+    "dataDeploymentUrl": "https://c6412c7f.ride-tiles-data.pages.dev",
+    "files": {
+      "mellow": 14314,
+      "root": 11081
+    },
+    "kind": "exact-byte-transport",
+    "logicalOrigin": "https://apfullai.github.io/ride-tiles",
+    "mapRefreshClaimed": false,
+    "mellowDeploymentUrl": "https://c7944bdf.ride-tiles-mellow.pages.dev",
+    "packageInventorySha256": {
+      "mellow": "b855dd905082fcb502f1e7b4ef2b570023673a3bcf25b012909f15dd903ab224",
+      "root": "946ee6330197c13b7630a839dfc67a90c7143ccfe9582924a83d32fb37863332"
+    },
+    "productionFingerprint": "ce9e363f07ff4156ddf3ac0c2405545a608f26138239d6f6664a55f0be503f1d",
+    "schemaVersion": 1,
+    "sourcePublicationRevision": "5ccf2daebedd98cdd88fc0011093f6eeebdbe809eb89c114d507d8424c4e5a22",
+    "state": "publication-bound"
+  },
+  "preserved": {
+    "canonicalManifestAndSnapshotBytesUnchanged": true,
+    "checkpointBytesUnchanged": true,
+    "originalGitHubPublicationUnchanged": true,
+    "productionAppDeploymentUnchanged": "28cc3293-ef96-4cd1-beb8-7f58c1576451",
+    "scheduledMaintenanceUnchanged": true
+  },
+  "schemaVersion": 1,
+  "scope": {
+    "actionsDispatched": false,
+    "allLooseHttpPathsChecked": false,
+    "browserCorsThroughCrossOriginRedirectVerified": false,
+    "consumerMigration": false,
+    "dnsChanges": false,
+    "newCredentialsCreated": false,
+    "newMapGeneration": false,
+    "paidServicesAdded": false
+  },
+  "sourceBranch": "development/vm-checkpoint-continuation",
+  "sourceCommit": "6c87bfdc5dbc743b51b7ec2561faec617df2b253",
+  "tests": {
+    "allPassed": true,
+    "development": 66,
+    "execution": "local; no GitHub Actions",
+    "generator": 95,
+    "publishing": 250,
+    "total": 411
+  },
+  "verifiedAt": "2026-10-20T15:46:53Z"
+}
