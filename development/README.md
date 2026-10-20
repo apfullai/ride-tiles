@@ -112,7 +112,13 @@ production modules, configuration, dependencies or workflow files still changes
 the production fingerprint and blocks an incompatible resume. No synthetic
 `GITHUB_RUN_ID`, `GITHUB_SHA`, token or CI proof is supplied by this tool.
 
-## Publication is a separate, unresolved step
+## Publication is separate from candidate continuation
+
+The [direct Cloudflare transport](CLOUDFLARE_DIRECT_PUBLISH.md) now packages a
+complete sealed site into two free-tier static uploads without Actions. It keeps
+all original snapshot and checkpoint bytes and publishes a separate transport
+manifest. It does not switch existing consumers or complete a map refresh.
+The restrictions below still apply to publishing back to GitHub Pages.
 
 There is no VM-to-GitHub-Pages publisher in this tool. Do not upload the local
 candidate as a release or point the application at its workspace.
